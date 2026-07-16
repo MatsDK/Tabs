@@ -155,15 +155,18 @@ function TabBarProviderInternal({
         dropdown.setHoverTarget(null);
       }
 
-      // Only same-container moves live-preview. Crossing into/out of/between
-      // groups doesn't change anything visually until the actual drop — it
-      // resolves fresh at that moment instead (see handleDragEnd). The pill's
-      // isCombineTarget/isOver styling is the feedback signal while hovering;
-      // nothing actually moves until you release.
+      // Live-preview same-container sorts and ejecting back to the strip — the
+      // strip is always rendered, so there's always somewhere for the tab to
+      // visually land. Combining into/moving between groups is the one case
+      // that doesn't preview: the target group's dropdown may not be mounted
+      // yet, so there's nowhere to show it landing. That resolves once,
+      // fresh, at the moment of drop instead — see handleDragEnd.
       setPreviewState((prev) => {
         const base = prev ?? stateRef.current;
         const event = resolveDropEvent(base, String(active.id), overIdStr, activeData0, overData);
-        if (!event || (event.kind !== 'SORT_STRIP' && event.kind !== 'SORT_GROUP_TABS')) return prev;
+        if (!event) return prev;
+        const canPreview = event.kind === 'SORT_STRIP' || event.kind === 'SORT_GROUP_TABS' || event.kind === 'EJECT_FROM_GROUP';
+        if (!canPreview) return prev;
         return tabBarReducer(base, { type: 'DND_RESOLVE', dragEvent: event });
       });
     },

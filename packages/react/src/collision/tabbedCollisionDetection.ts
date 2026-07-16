@@ -58,7 +58,7 @@ function nearestByPointer(
 
 export function createTabbedCollisionDetection(ctx: CollisionContext): CollisionDetection {
   const combineFraction = ctx.combineFraction ?? 0.8;
-  const hitMargin = ctx.dropdownHitMargin ?? 16;
+  const hitMargin = ctx.dropdownHitMargin ?? 8;
 
   return (args) => {
     const { active, droppableContainers, pointerCoordinates } = args;

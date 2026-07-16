@@ -25,8 +25,18 @@ export type { UseTabStripReturn } from './hooks/useTabStrip.js';
 export { useTabPanel } from './hooks/useTabPanel.js';
 export type { UseTabPanelReturn } from './hooks/useTabPanel.js';
 
-// Context (for advanced use / custom components)
+export { useStickyPosition } from './hooks/useStickyPosition.js';
+export type { StickyRect } from './hooks/useStickyPosition.js';
+
+// Advanced / custom-component building blocks
 export { useTabBarContext } from './context.js';
+export type { TabBarContextValue } from './context.js';
+
+export { getAxisMetrics } from './axis.js';
+export type { Orientation, AxisMetrics } from './axis.js';
+
+export { createTabbedCollisionDetection } from './collision/tabbedCollisionDetection.js';
+export type { CollisionContext } from './collision/tabbedCollisionDetection.js';
 
 // Re-export core types for convenience — users shouldn't need to install core separately
 export type {

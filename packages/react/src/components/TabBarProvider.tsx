@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
+  MeasuringStrategy,
   PointerSensor,
   KeyboardSensor,
   TouchSensor,
@@ -9,248 +10,241 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import type { DragEndEvent, DragOverEvent, DragStartEvent, SensorDescriptor } from '@dnd-kit/core';
-import { tabbedCollisionDetection } from '../collision/tabbedCollisionDetection.js';
+import type {
+  DragCancelEvent,
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+  Modifier,
+  SensorDescriptor,
+} from '@dnd-kit/core';
+import { createTabbedCollisionDetection } from '../collision/tabbedCollisionDetection.js';
+import type { CollisionContext } from '../collision/tabbedCollisionDetection.js';
+import type { Orientation } from '../axis.js';
+import { useGroupDropdownCoordinator } from '../hooks/useGroupDropdownCoordinator.js';
+import type { GroupDropdownCoordinator } from '../hooks/useGroupDropdownCoordinator.js';
+import { resolveDropEvent } from '../dragResolution.js';
+import type { DragData } from '../dragResolution.js';
 import { TabBarContext } from '../context.js';
-import { tabBarReducer } from '@react-tabstack/core';
+import { tabBarReducer, findEmptiedGroups } from '@react-tabstack/core';
 import type {
   TabBarState,
   TabBarActions,
-  GroupDropState,
-  DndResolveEvent,
+  TabGroup,
   TabBarProviderProps,
 } from '@react-tabstack/core';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TabBarProvider — root orchestration component
 //
-// Wraps dnd-kit's DndContext and provides TabBarContext to the tree.
-// Users pass state + onStateChange (controlled model, like <input>).
+// Wraps dnd-kit's DndContext and provides TabBarContext to the tree. Users pass
+// state + onStateChange (controlled model, like <input>). During a drag, a local
+// preview mirror of `state` is updated on every dragOver (resolved via the same
+// logic used at drop time), so cross-container moves reorder live instead of only
+// snapping into place on drop; the real onStateChange only fires once, on
+// dragEnd — see resolveDropEvent below.
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface TabBarProviderInternalProps extends TabBarProviderProps {
+type Data = DragData;
+
+interface TabBarProviderInternalProps extends Omit<TabBarProviderProps, 'children' | 'onStateChange'> {
   actions: TabBarActions;
+  /** Commits a fully-resolved next state: updates the controlled state and fires onGroupEmpty for any newly-emptied groups. */
+  commit: (next: TabBarState, intentionallyRemovedGroupIds?: string[]) => void;
+  children?: React.ReactNode;
+  sensors?: SensorDescriptor<Record<string, unknown>>[];
+  collisionDetection?: (ctx: CollisionContext) => ReturnType<typeof createTabbedCollisionDetection>;
+  modifiers?: Modifier[];
+  renderDragOverlay?: (activeId: string, data: Data) => React.ReactNode;
 }
+
+const EMPTY_MODIFIERS: Modifier[] = [];
+
+// Group dropdowns mount/unmount and tabs move between containers mid-drag —
+// dnd-kit's default lazy/cached rect measurement goes stale the instant that
+// happens, causing exactly the "jumps around" symptom a fixed collision layout
+// is supposed to prevent. Always remeasuring droppables (Marple's own fix for
+// this) keeps collision detection working off current geometry.
+const MEASURING_ALWAYS = { droppable: { strategy: MeasuringStrategy.Always } };
 
 function TabBarProviderInternal({
   state,
-  onStateChange,
+  commit,
   actions,
-  groupHoverDelay = 600,
+  orientation: orientationProp,
+  dwell: dwellProp,
+  groupHoverDelay,
   groupOpenOn = 'hover+click',
-  onGroupEmpty,
+  dissolveEmptyGroups = false,
+  autoScroll = true,
   onDragEscape,
   contextMenu,
   sensors: sensorsProp,
   collisionDetection: collisionDetectionProp,
+  modifiers: modifiersProp,
   children,
   renderDragOverlay,
-}: TabBarProviderInternalProps & {
-  sensors?: SensorDescriptor<any>[];
-  collisionDetection?: typeof tabbedCollisionDetection;
-  renderDragOverlay?: (activeId: string, data: Record<string, unknown>) => React.ReactNode;
-}) {
-  const [dragDropState, setDragDropState] = useState<GroupDropState>({
-    openGroupId: null,
-    hoveringGroupId: null,
-  });
+}: TabBarProviderInternalProps) {
+  const orientation: Orientation = orientationProp ?? 'horizontal';
+  // Near-instant by default: this gates the ONLY moment a group's dropdown
+  // content exists in the DOM at all (see GroupPill's `isOpen` mount condition
+  // in the demo). Anything much slower than ~60ms makes it feel like you can't
+  // drag "into" a group at all, because there's nothing there yet to collide
+  // with. Marple's own production value for the drag case is 50ms.
+  const dwellOpen = dwellProp?.open ?? groupHoverDelay ?? 60;
+  const dwellClose = dwellProp?.close ?? 200;
+  const dwell = useMemo(() => ({ open: dwellOpen, close: dwellClose }), [dwellOpen, dwellClose]);
+
+  const dropdown: GroupDropdownCoordinator = useGroupDropdownCoordinator(dwell);
 
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [activeData, setActiveData] = useState<Record<string, unknown> | null>(null);
-  const stripRef = useRef<HTMLElement | null>(null);
+  const [activeData, setActiveData] = useState<Data | null>(null);
+  const [previewState, setPreviewState] = useState<TabBarState | null>(null);
+
+  // Refs so the memoized dnd-kit handlers below don't need to be recreated (and
+  // don't close over stale values) on every render.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const previewStateRef = useRef(previewState);
+  previewStateRef.current = previewState;
 
   // ── Sensors ────────────────────────────────────────────────────────────────
   const defaultSensors = useSensors(
-    useSensor(PointerSensor, {
-      // 5px threshold prevents accidental drags on click
-      activationConstraint: { distance: 5 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 5 },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
+  );
+  const sensors = sensorsProp ?? defaultSensors;
+
+  const collisionDetection = useMemo(
+    () => (collisionDetectionProp ? collisionDetectionProp({ orientation }) : createTabbedCollisionDetection({ orientation })),
+    [collisionDetectionProp, orientation]
   );
 
-  const sensors = sensorsProp ?? defaultSensors;
+  // No axis-lock by default: restrictToHorizontalAxis/VerticalAxis pins the drag
+  // *overlay* to one axis, but moving a tab into a group's dropdown fundamentally
+  // requires cross-axis pointer movement (e.g. down, out of a horizontal strip).
+  // Locking it by default made the overlay visually lag the real pointer and made
+  // group targeting feel broken. `axis.axisModifier` is still exported for
+  // consumers with no groups who want a strictly single-axis sortable list.
+  const modifiers = modifiersProp ?? EMPTY_MODIFIERS;
 
   // ── Drag event handlers ────────────────────────────────────────────────────
 
   const handleDragStart = useCallback(({ active }: DragStartEvent) => {
     setActiveId(String(active.id));
-    setActiveData((active.data.current as Record<string, unknown>) ?? null);
+    setActiveData((active.data.current as Data) ?? null);
+    setPreviewState(stateRef.current);
   }, []);
 
   const handleDragOver = useCallback(
     ({ active, over }: DragOverEvent) => {
-      if (!over) return;
-      const overId = String(over.id);
-
-      // Track which group pill is being hovered (for dwell timer coordination)
-      if (overId.startsWith('group-pill:')) {
-        const groupId = overId.replace('group-pill:', '');
-        setDragDropState((prev) => ({
-          ...prev,
-          hoveringGroupId: groupId,
-        }));
-      } else {
-        setDragDropState((prev) => ({
-          ...prev,
-          hoveringGroupId: null,
-        }));
+      if (!over) {
+        dropdown.setHoverTarget(null);
+        return;
       }
+      const overData = (over.data.current ?? {}) as Data;
+      const activeData0 = (active.data.current ?? {}) as Data;
+      const overIdStr = String(over.id);
+
+      if (overData.type === 'group-pill' || overData.type === 'group-tab') {
+        dropdown.setHoverTarget(overData.groupId as string);
+      } else if (overIdStr.startsWith('group-dropdown:')) {
+        dropdown.setHoverTarget(overIdStr.replace('group-dropdown:', ''));
+      } else {
+        dropdown.setHoverTarget(null);
+      }
+
+      // Only same-container moves live-preview. Crossing into/out of/between
+      // groups doesn't change anything visually until the actual drop — it
+      // resolves fresh at that moment instead (see handleDragEnd). The pill's
+      // isCombineTarget/isOver styling is the feedback signal while hovering;
+      // nothing actually moves until you release.
+      setPreviewState((prev) => {
+        const base = prev ?? stateRef.current;
+        const event = resolveDropEvent(base, String(active.id), overIdStr, activeData0, overData);
+        if (!event || (event.kind !== 'SORT_STRIP' && event.kind !== 'SORT_GROUP_TABS')) return prev;
+        return tabBarReducer(base, { type: 'DND_RESOLVE', dragEvent: event });
+      });
     },
-    []
+    [dropdown]
   );
 
   const handleDragEnd = useCallback(
     ({ active, over }: DragEndEvent) => {
-      // Reset drag state
+      const previewBase = previewStateRef.current ?? stateRef.current;
       setActiveId(null);
       setActiveData(null);
-      setDragDropState({ openGroupId: null, hoveringGroupId: null });
+      setPreviewState(null);
+      dropdown.closeImmediate();
 
       if (!over) {
-        // Dragged outside — fire escape callback if configured
-        const data = active.data.current as Record<string, unknown> | undefined;
+        const data = active.data.current as Data | undefined;
         if (data?.type === 'tab' || data?.type === 'group-tab') {
           onDragEscape?.(String(active.id), actions);
         }
         return;
       }
 
-      const activeId = String(active.id);
-      const overId = String(over.id);
-      const activeData = (active.data.current ?? {}) as Record<string, unknown>;
-      const overData = (over.data.current ?? {}) as Record<string, unknown>;
-
-      if (activeId === overId) return;
-
-      let event: DndResolveEvent | null = null;
-
-      // ── Drop into group pill (immediate drop without dwell) ──────────────
-      if (overId.startsWith('group-pill:') && activeData.type === 'tab') {
-        const groupId = overId.replace('group-pill:', '');
-        event = {
-          kind: 'DROP_INTO_GROUP',
-          tabId: activeData.tabId as string,
-          groupId,
-          index: 0,
-        };
-      }
-
-      // ── Drop into open group dropdown ─────────────────────────────────────
-      else if (overId.startsWith('group-dropdown:') && activeData.type === 'group-tab') {
-        const groupId = overId.replace('group-dropdown:', '');
-        const fromGroupId = activeData.groupId as string;
-        if (fromGroupId === groupId) {
-          // Sort within same group
-          event = {
-            kind: 'SORT_GROUP_TABS',
-            tabId: activeData.tabId as string,
-            groupId,
-            toIndex: overData.index as number ?? 0,
-          };
-        } else {
-          event = {
-            kind: 'MOVE_BETWEEN_GROUPS',
-            tabId: activeData.tabId as string,
-            fromGroupId,
-            toGroupId: groupId,
-            index: overData.index as number ?? 0,
-          };
-        }
-      }
-
-      // ── Eject from group to strip ─────────────────────────────────────────
-      else if (activeData.type === 'group-tab' && overData.type !== 'group-tab') {
-        const stripIdx = state.slots.findIndex(
-          (s) => (s.type === 'tab' && s.tabId === overId) || (s.type === 'group' && s.groupId === overId)
-        );
-        event = {
-          kind: 'EJECT_FROM_GROUP',
-          tabId: activeData.tabId as string,
-          groupId: activeData.groupId as string,
-          stripIndex: Math.max(0, stripIdx),
-        };
-      }
-
-      // ── Sort strip (tab or group) ─────────────────────────────────────────
-      else if (
-        (activeData.type === 'tab' || activeData.type === 'group') &&
-        (overData.type === 'tab' || overData.type === 'group' || overId === 'strip')
-      ) {
-        const resolvedOverId =
-          overId === 'strip'
-            ? state.slots[state.slots.length - 1]?.type === 'tab'
-              ? (state.slots[state.slots.length - 1] as { tabId: string }).tabId
-              : (state.slots[state.slots.length - 1] as { groupId: string }).groupId
-            : overId;
-
-        if (resolvedOverId) {
-          event = {
-            kind: 'SORT_STRIP',
-            activeId: activeData.type === 'tab' ? (activeData.tabId as string) : (activeData.groupId as string),
-            overId: resolvedOverId,
-          };
-        }
-      }
-
-      if (event) {
-        const nextState = tabBarReducer(state, { type: 'DND_RESOLVE', dragEvent: event });
-        onStateChange(nextState);
-
-        // Check for empty group after drop
-        if (event.kind === 'DROP_INTO_GROUP' || event.kind === 'EJECT_FROM_GROUP' || event.kind === 'MOVE_BETWEEN_GROUPS') {
-          const fromGroupId =
-            event.kind === 'EJECT_FROM_GROUP' ? event.groupId
-            : event.kind === 'MOVE_BETWEEN_GROUPS' ? event.fromGroupId
-            : null;
-
-          if (fromGroupId && onGroupEmpty) {
-            const slot = nextState.slots.find(
-              (s) => s.type === 'group' && s.groupId === fromGroupId
-            );
-            if (slot?.type === 'group' && slot.tabIds.length === 0) {
-              onGroupEmpty(fromGroupId, actions);
-            }
-          }
-        }
-      }
+      // Resolve fresh against the final collision: same-container events are a
+      // no-op re-resolution of what's already previewed; cross-container events
+      // (into/out of/between groups) are applied here for the first and only time.
+      const overData = (over.data.current ?? {}) as Data;
+      const activeData0 = (active.data.current ?? {}) as Data;
+      const event = resolveDropEvent(previewBase, String(active.id), String(over.id), activeData0, overData);
+      const finalState = event ? tabBarReducer(previewBase, { type: 'DND_RESOLVE', dragEvent: event }) : previewBase;
+      commit(finalState);
     },
-    [state, onStateChange, actions, onDragEscape, onGroupEmpty]
+    [actions, onDragEscape, commit, dropdown]
+  );
+
+  const handleDragCancel = useCallback(
+    (_event: DragCancelEvent) => {
+      setActiveId(null);
+      setActiveData(null);
+      setPreviewState(null);
+      dropdown.closeImmediate();
+    },
+    [dropdown]
   );
 
   // ── Context value ──────────────────────────────────────────────────────────
+  const displayState = previewState ?? state;
+
   const contextValue = useMemo(
     () => ({
-      state,
+      state: displayState,
       actions,
-      dragDropState,
-      setDragDropState,
-      groupHoverDelay,
+      orientation,
+      isDragActive: activeId !== null,
+      dropdown,
+      dwell,
       groupOpenOn,
+      dissolveEmptyGroups,
       contextMenu,
     }),
-    [state, actions, dragDropState, groupHoverDelay, groupOpenOn, contextMenu]
+    [displayState, actions, orientation, activeId, dropdown, dwell, groupOpenOn, dissolveEmptyGroups, contextMenu]
   );
 
   return (
     <TabBarContext.Provider value={contextValue}>
       <DndContext
         sensors={sensors}
-        collisionDetection={collisionDetectionProp ?? tabbedCollisionDetection}
+        collisionDetection={collisionDetection}
+        autoScroll={autoScroll}
+        modifiers={modifiers}
+        measuring={MEASURING_ALWAYS}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
       >
-        {children as React.ReactNode}
-        <DragOverlay>
+        {children}
+        <DragOverlay dropAnimation={{ duration: 150, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
           {activeId && activeData
             ? renderDragOverlay
               ? renderDragOverlay(activeId, activeData)
-              : <DefaultDragOverlay activeId={activeId} activeData={activeData} state={state} />
+              : <DefaultDragOverlay activeId={activeId} activeData={activeData} state={displayState} />
             : null}
         </DragOverlay>
       </DndContext>
@@ -259,59 +253,27 @@ function TabBarProviderInternal({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Default drag overlay — renders a simple clone of the tab label
+// Default drag overlay — unstyled. A headless library shouldn't guess at a
+// consumer's theme; style `[data-ts-drag-overlay]` or pass `renderDragOverlay`.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DefaultDragOverlay({
-  activeId,
-  activeData,
-  state,
-}: {
-  activeId: string;
-  activeData: Record<string, unknown>;
-  state: TabBarState;
-}) {
+function DefaultDragOverlay({ activeId, activeData, state }: { activeId: string; activeData: Data; state: TabBarState }) {
   const tabId = (activeData.tabId ?? activeId) as string;
   const groupId = activeData.groupId as string | undefined;
   const tab = state.tabs[tabId];
   const group = groupId ? state.groups[groupId] : undefined;
 
   return (
-    <div
-      style={{
-        background: 'var(--ts-overlay-bg, #23272f)',
-        color: 'var(--ts-overlay-color, #e6edf3)',
-        border: '1px solid var(--ts-overlay-border, #30363d)',
-        borderRadius: '6px',
-        padding: '4px 12px',
-        fontSize: '13px',
-        fontWeight: 500,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-        cursor: 'grabbing',
-        whiteSpace: 'nowrap',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-      }}
-    >
-      {group && (
-        <span
-          style={{
-            width: 10,
-            height: 10,
-            borderRadius: '50%',
-            background: group.color ?? 'var(--ts-group-default-color, #6e7681)',
-            flexShrink: 0,
-          }}
-        />
-      )}
+    <div data-ts-drag-overlay="" data-ts-dragging-type={String(activeData.type ?? '')} style={{ cursor: 'grabbing' }}>
       {tab?.label ?? group?.label ?? activeId}
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Public TabBarProvider — accepts controlled state + actions from useTabState
+// Public TabBarProvider — builds actions bound to onStateChange, and centralizes
+// the commit path (state update + onGroupEmpty notification) so every mutation —
+// drag-resolved or not — goes through the same logic.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type { TabBarProviderProps };
@@ -319,41 +281,76 @@ export type { TabBarProviderProps };
 export function TabBarProvider({
   state,
   onStateChange,
+  onGroupEmpty,
+  dissolveEmptyGroups = false,
   children,
   ...rest
 }: TabBarProviderProps & {
-  sensors?: SensorDescriptor<any>[];
-  collisionDetection?: typeof tabbedCollisionDetection;
-  renderDragOverlay?: (activeId: string, data: Record<string, unknown>) => React.ReactNode;
+  sensors?: SensorDescriptor<Record<string, unknown>>[];
+  collisionDetection?: (ctx: CollisionContext) => ReturnType<typeof createTabbedCollisionDetection>;
+  modifiers?: Modifier[];
+  renderDragOverlay?: (activeId: string, data: Data) => React.ReactNode;
 }) {
-  // Build the actions object bound to onStateChange
-  // In the controlled model, actions dispatch to the reducer and call onStateChange
-  const actions = useMemo(
-    () => buildActions(state, onStateChange),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, onStateChange]
+  // actions reference commit, commit references actions (for the onGroupEmpty
+  // callback's second argument) — broken via a ref, set once actions exist.
+  const actionsRef = useRef<TabBarActions | null>(null);
+
+  const commit = useCallback(
+    (next: TabBarState, intentionallyRemovedGroupIds?: string[]) => {
+      // Exclude groups the action *itself* just deliberately removed/dissolved —
+      // findEmptiedGroups can't tell "went empty then got pruned" apart from
+      // "user explicitly deleted the group" from state alone, since both leave
+      // an identical before/after diff. The action creators below know which
+      // case they're in, so they pass the exclusion through.
+      const exclude = new Set(intentionallyRemovedGroupIds ?? []);
+      const emptied = findEmptiedGroups(state, next).filter((id) => !exclude.has(id));
+      onStateChange(next);
+      if (actionsRef.current) {
+        for (const groupId of emptied) onGroupEmpty?.(groupId, actionsRef.current);
+      }
+    },
+    [state, onStateChange, onGroupEmpty]
   );
+
+  const actions = useMemo(() => {
+    const built = buildActions(state, commit, dissolveEmptyGroups);
+    actionsRef.current = built;
+    return built;
+  }, [state, commit, dissolveEmptyGroups]);
 
   return (
     <TabBarProviderInternal
       state={state}
-      onStateChange={onStateChange}
+      commit={commit}
       actions={actions}
+      onGroupEmpty={onGroupEmpty}
+      dissolveEmptyGroups={dissolveEmptyGroups}
       {...rest}
     >
-      {children}
+      {children as React.ReactNode}
     </TabBarProviderInternal>
   );
 }
 
-/** Build TabBarActions bound to a controlled onStateChange */
+/** Build TabBarActions bound to a controlled commit function. */
 function buildActions(
   state: TabBarState,
-  onStateChange: (s: TabBarState) => void
+  commit: (s: TabBarState, intentionallyRemovedGroupIds?: string[]) => void,
+  dissolveEmptyGroupsDefault: boolean
 ): TabBarActions {
   const dispatch = (action: Parameters<typeof tabBarReducer>[1]) => {
-    onStateChange(tabBarReducer(state, action));
+    // REMOVE_GROUP/DISSOLVE_GROUP are the only actions that can make a group
+    // vanish on purpose — exclude their target from the onGroupEmpty diff so a
+    // deliberate "Ungroup"/"Close group" doesn't also fire the "went empty"
+    // notification for the very group the user just chose to remove.
+    const intentional = action.type === 'REMOVE_GROUP' || action.type === 'DISSOLVE_GROUP' ? [action.groupId] : undefined;
+    commit(tabBarReducer(state, action), intentional);
   };
+
+  const withGroupDefaults = (group: TabGroup): TabGroup => ({
+    ...group,
+    dissolveOnEmpty: group.dissolveOnEmpty ?? dissolveEmptyGroupsDefault,
+  });
 
   return {
     addTab: (tab, position) => dispatch({ type: 'ADD_TAB', tab, position }),
@@ -363,7 +360,7 @@ function buildActions(
     pinTab: (tabId) => dispatch({ type: 'PIN_TAB', tabId }),
     unpinTab: (tabId) => dispatch({ type: 'UNPIN_TAB', tabId }),
     updateTab: (tabId, patch) => dispatch({ type: 'UPDATE_TAB', tabId, patch }),
-    addGroup: (group, position) => dispatch({ type: 'ADD_GROUP', group, position }),
+    addGroup: (group, position) => dispatch({ type: 'ADD_GROUP', group: withGroupDefaults(group), position }),
     removeGroup: (groupId, opts) => dispatch({ type: 'REMOVE_GROUP', groupId, dissolve: opts?.dissolve }),
     moveGroup: (groupId, toIndex) => dispatch({ type: 'MOVE_GROUP', groupId, toIndex }),
     updateGroup: (groupId, patch) => dispatch({ type: 'UPDATE_GROUP', groupId, patch }),
@@ -381,7 +378,7 @@ function buildActions(
         dispatch({ type: 'ADD_TAB_TO_GROUP', tabId, groupId: toGroupId, index: toIndex });
       }
     },
-    createGroupFromTab: (tabId, group) => dispatch({ type: 'CREATE_GROUP_FROM_TAB', tabId, group }),
+    createGroupFromTab: (tabId, group) => dispatch({ type: 'CREATE_GROUP_FROM_TAB', tabId, group: withGroupDefaults(group) }),
     dispatch: dispatch as TabBarActions['dispatch'],
   };
 }

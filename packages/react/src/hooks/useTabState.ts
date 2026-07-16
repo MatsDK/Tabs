@@ -190,7 +190,6 @@ export function useTabState(initialState?: Partial<TabBarState>): UseTabStateRet
       createGroupFromTab,
       dispatch: dispatch as (action: TabBarAction) => void,
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       addTab, removeTab, moveTab, setActiveTab, pinTab, unpinTab, updateTab,
       addGroup, removeGroup, moveGroup, updateGroup, collapseGroup, expandGroup,

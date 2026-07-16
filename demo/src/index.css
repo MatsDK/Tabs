@@ -55,6 +55,14 @@ body { min-height: 100vh; background: var(--c-bg); }
   letter-spacing: 0.04em;
 }
 
+.example-switcher { display: flex; gap: 2px; padding: 2px; background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 6px; }
+.example-switcher-btn {
+  border: none; background: transparent; padding: 4px 10px; border-radius: 4px;
+  font-size: 12px; font-weight: 500; color: var(--c-muted); cursor: pointer; font-family: inherit;
+}
+.example-switcher-btn:hover { color: var(--c-text); }
+.example-switcher-btn[data-active] { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+
 .demo-header-desc {
   color: var(--c-muted);
   font-size: 12px;
@@ -106,6 +114,22 @@ body { min-height: 100vh; background: var(--c-bg); }
 
 .btn-sep { width: 1px; height: 18px; background: var(--c-border); }
 
+.orientation-toggle { display: inline-flex; gap: 2px; padding: 2px; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 6px; }
+.orientation-toggle .btn { border: none; background: transparent; padding: 3px 8px; }
+.orientation-toggle .btn[data-active] { background: var(--c-bg); box-shadow: 0 1px 2px rgba(0,0,0,0.08); color: var(--c-accent); }
+
+/* ─── Drag overlay ghost ─────────────────────────────────────────────────── */
+/* Reuses .tab / .group-pill so the ghost matches the real element exactly —
+   this modifier just adds the "lifted" affordance on top. */
+.drag-ghost {
+  background: var(--c-bg) !important;
+  border-color: var(--c-border) !important;
+  color: var(--c-text) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08);
+  cursor: grabbing;
+  opacity: 1 !important;
+}
+
 /* ─── Tab Strip ──────────────────────────────────────────────────────────── */
 .tab-strip {
   display: flex;
@@ -121,6 +145,43 @@ body { min-height: 100vh; background: var(--c-bg); }
   position: relative;
 }
 .tab-strip::-webkit-scrollbar { display: none; }
+
+/* ─── Vertical orientation ───────────────────────────────────────────────── */
+.demo-body:has(.demo-strip-section--vertical) { flex-direction: row; }
+
+.demo-strip-section--vertical {
+  border-bottom: none;
+  border-right: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  width: 210px;
+  flex-shrink: 0;
+}
+
+.tab-strip[data-orientation='vertical'] {
+  flex-direction: column;
+  align-items: stretch;
+  overflow-x: visible;
+  overflow-y: auto;
+  width: 100%;
+  flex: 1;
+  padding: 4px;
+}
+
+.tab-strip[data-orientation='vertical'] .tab,
+.tab-strip[data-orientation='vertical'] .group-pill {
+  align-self: stretch;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  border-radius: 5px;
+  margin-bottom: 0;
+}
+
+.tab-strip[data-orientation='vertical'] .tab-new {
+  align-self: stretch;
+  border-radius: 5px;
+}
 
 /* ─── Tab ────────────────────────────────────────────────────────────────── */
 .tab {
@@ -179,6 +240,18 @@ body { min-height: 100vh; background: var(--c-bg); }
   min-width: 0;
 }
 
+input.tab-label, input.group-label, input.group-tab-label {
+  border: none;
+  outline: 1px solid var(--c-accent);
+  outline-offset: -1px;
+  border-radius: 3px;
+  background: var(--c-bg);
+  font: inherit;
+  color: inherit;
+  padding: 0 2px;
+  min-width: 40px;
+}
+
 .tab-close {
   display: flex;
   align-items: center;
@@ -234,7 +307,19 @@ body { min-height: 100vh; background: var(--c-bg); }
   color: var(--c-text);
 }
 .group-pill[data-dragging] { opacity: 0.35; }
-.group-pill[data-over] { outline: 2px solid var(--c-accent); outline-offset: -2px; }
+
+/* Sorting *next to* the pill — dnd-kit's own transform reflow already shows
+   this, so the pill itself just gets a light hover-style nudge. */
+.group-pill[data-over]:not([data-combine-target]) { background: #eff1f3; color: var(--c-text); }
+
+/* Dropping *into* the pill (combine) — a distinct, stronger affordance so the
+   two outcomes never look the same. Tinted with the group's own color when set. */
+.group-pill[data-combine-target] {
+  outline: 2px solid var(--group-color, var(--c-accent));
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--group-color, var(--c-accent)) 16%, transparent);
+  color: var(--c-text);
+}
 
 .group-dot {
   width: 8px;
@@ -388,22 +473,31 @@ body { min-height: 100vh; background: var(--c-bg); }
 }
 
 /* ─── Context Menu ───────────────────────────────────────────────────────── */
-.context-menu-content {
+.context-menu-content,
+.context-menu-sub-content {
   background: var(--c-bg);
   border: 1px solid var(--c-border);
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06);
   padding: 4px;
-  min-width: 168px;
+  min-width: 190px;
   z-index: 9999;
-  animation: fade-in 0.08s ease;
+  animation: menu-in 0.1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.context-menu-sub-content { min-width: 160px; }
+
+@keyframes menu-in {
+  from { opacity: 0; transform: scale(0.97) translateY(-2px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.context-menu-item {
+.context-menu-item,
+.context-menu-sub-trigger {
   display: flex;
   align-items: center;
-  padding: 5px 9px;
-  border-radius: 4px;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: 5px;
   font-size: 12.5px;
   color: var(--c-text);
   cursor: pointer;
@@ -414,10 +508,21 @@ body { min-height: 100vh; background: var(--c-bg); }
   text-align: left;
   font-family: inherit;
 }
-.context-menu-item[data-highlighted] { background: var(--c-surface); }
+.context-menu-item[data-highlighted],
+.context-menu-sub-trigger[data-highlighted],
+.context-menu-sub-trigger[data-state='open'] { background: var(--c-surface); }
 .context-menu-item[data-disabled] { color: var(--c-muted); cursor: default; }
 
-.context-menu-separator { height: 1px; background: var(--c-border-m); margin: 3px 0; }
+.context-menu-item[data-destructive] { color: #c0392b; }
+.context-menu-item[data-destructive][data-highlighted] { background: #fdeeec; }
+
+.context-menu-item-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; flex-shrink: 0; color: var(--c-muted);
+}
+.context-menu-item[data-destructive] .context-menu-item-icon { color: inherit; }
+
+.context-menu-separator { height: 1px; background: var(--c-border-m); margin: 4px 2px; }
 
 .context-menu-label {
   padding: 3px 9px;
@@ -427,29 +532,19 @@ body { min-height: 100vh; background: var(--c-bg); }
   user-select: none;
 }
 
-.context-menu-sub-trigger {
-  display: flex;
-  align-items: center;
-  padding: 5px 9px;
-  border-radius: 4px;
-  font-size: 12.5px;
-  color: var(--c-text);
-  cursor: pointer;
-  outline: none;
-  font-family: inherit;
-}
-.context-menu-sub-trigger[data-highlighted] { background: var(--c-surface); }
-.context-menu-sub-content {
-  background: var(--c-bg);
-  border: 1px solid var(--c-border);
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-  padding: 4px;
-  min-width: 140px;
-  z-index: 9999;
-  animation: fade-in 0.08s ease;
-}
 .context-sub-arrow { margin-left: auto; color: var(--c-muted); font-size: 9px; }
+
+/* ⋮ trigger button — was previously unstyled (no matching CSS rule existed) */
+.tab-dots {
+  display: flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0;
+  border: none; background: transparent; color: var(--c-muted);
+  cursor: pointer; padding: 0; opacity: 0; transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
+.tab:hover .tab-dots, .tab[data-active] .tab-dots,
+.group-tab-item:hover .tab-dots,
+.tab-dots[data-state='open'] { opacity: 1; }
+.tab-dots:hover, .tab-dots[data-state='open'] { background: var(--c-border-m); color: var(--c-text); }
 
 /* ─── State Inspector ────────────────────────────────────────────────────── */
 .state-inspector {

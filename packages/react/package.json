@@ -3,18 +3,30 @@
   "version": "0.0.1",
   "description": "React hooks and provider for react-tabstack",
   "type": "module",
-  "main": "./src/index.ts",
+  "license": "MIT",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^8.0.0",
+    "@dnd-kit/modifiers": "^9.0.0",
+    "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@radix-ui/react-context-menu": "^2.2.6",
     "@react-tabstack/core": "workspace:*"
   },
   "peerDependencies": {
@@ -22,8 +34,12 @@
     "react-dom": ">=18"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "typescript": "^5.4.5"
+    "jsdom": "^29.1.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.4.5",
+    "vitest": "^2.1.9"
   }
 }

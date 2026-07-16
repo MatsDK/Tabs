@@ -13,4 +13,4 @@ export type {
   TabBarProviderProps,
 } from './types.js';
 
-export { tabBarReducer } from './reducer.js';
+export { tabBarReducer, findEmptiedGroups } from './reducer.js';

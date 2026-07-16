@@ -32,6 +32,7 @@ export interface UseTabReturn {
 
 export function useTab(tabId: string): UseTabReturn {
   const { state, actions } = useTabBarContext();
+  const tab = state.tabs[tabId];
 
   const {
     setNodeRef,
@@ -43,7 +44,8 @@ export function useTab(tabId: string): UseTabReturn {
     isOver,
   } = useSortable({
     id: tabId,
-    data: { type: 'tab', tabId },
+    data: { type: 'tab', tabId, pinned: !!tab?.pinned },
+    disabled: tab?.draggable === false,
   });
 
   const style: React.CSSProperties = {
@@ -62,9 +64,10 @@ export function useTab(tabId: string): UseTabReturn {
       role: 'tab',
       'aria-selected': state.activeTabId === tabId,
       'data-tab-id': tabId,
+      'data-ts-tab': tabId,
       'data-active': state.activeTabId === tabId ? '' : undefined,
       'data-dragging': isDragging ? '' : undefined,
-      'data-pinned': state.tabs[tabId]?.pinned ? '' : undefined,
+      'data-pinned': tab?.pinned ? '' : undefined,
     },
     listeners,
     style,

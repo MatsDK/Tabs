@@ -13,6 +13,8 @@ export interface Tab<TMeta = unknown> {
   icon?: string;
   closable?: boolean;
   pinned?: boolean;
+  /** When false, this tab cannot be dragged (still selectable/closable). Default: true */
+  draggable?: boolean;
   /** Arbitrary user data — the library never reads or mutates this */
   meta?: TMeta;
 }
@@ -25,6 +27,20 @@ export interface TabGroup<TMeta = unknown> {
   color?: string;
   /** When true the dropdown is visually collapsed but tabs are still accessible */
   collapsed?: boolean;
+  /** When false, the group pill itself cannot be dragged. Default: true */
+  draggable?: boolean;
+  /**
+   * How this group's dropdown opens outside of a drag. Overrides the provider-level
+   * `groupOpenOn` default for this one group when set.
+   */
+  openOn?: 'hover' | 'click' | 'hover+click';
+  /**
+   * When true, this group is removed automatically the moment its last tab is
+   * removed. Resolved from the provider-level `dissolveEmptyGroups` default at
+   * group-creation time when not explicitly set here — see `TabBarProviderProps`.
+   * Default: false (the empty group pill persists as a drop zone).
+   */
+  dissolveOnEmpty?: boolean;
   /** Arbitrary user data */
   meta?: TMeta;
 }
@@ -114,6 +130,10 @@ export type MenuItem =
       type?: 'item';
       label: string;
       disabled?: boolean;
+      /** Opaque to the library — a ReactNode on the React layer, same convention as Tab.icon */
+      icon?: string;
+      /** Style as a dangerous/destructive action (e.g. close, remove, ungroup) */
+      destructive?: boolean;
       /** Receives the full action helpers — same object useTabState exposes */
       action?: (actions: TabBarActions) => void;
       submenu?: MenuItem[];
@@ -164,11 +184,22 @@ export interface TabBarProviderProps<TTabMeta = unknown, TGroupMeta = unknown> {
   state: TabBarState<TTabMeta, TGroupMeta>;
   onStateChange: (state: TabBarState<TTabMeta, TGroupMeta>) => void;
 
-  /** ms to hover over a group pill before dropdown opens during a drag (default: 600) */
+  /** Strip layout axis. Default: 'horizontal' */
+  orientation?: 'horizontal' | 'vertical';
+
+  /**
+   * Dwell timing (ms) for group dropdown open/close, both during a drag-hover and
+   * for non-drag hover (when `groupOpenOn` includes 'hover'). Default: { open: 150,
+   * close: 300 }.
+   */
+  dwell?: { open?: number; close?: number };
+
+  /** @deprecated use `dwell.open` instead. ms to hover over a group pill before the dropdown opens during a drag. */
   groupHoverDelay?: number;
 
   /**
-   * How the group dropdown opens when NOT dragging.
+   * How a group dropdown opens when NOT dragging. Per-group `TabGroup.openOn`
+   * overrides this for that one group.
    * 'hover' = opens on mouse enter, closes on mouse leave
    * 'click' = click to toggle open/closed
    * 'hover+click' = hover opens (temporary), click pins open (default)
@@ -176,9 +207,23 @@ export interface TabBarProviderProps<TTabMeta = unknown, TGroupMeta = unknown> {
   groupOpenOn?: 'hover' | 'click' | 'hover+click';
 
   /**
-   * Called when the last tab is removed from a group.
-   * The group is NOT auto-dissolved — it persists showing an empty drop zone.
-   * Return true to dissolve the group programmatically from this callback.
+   * Default for `TabGroup.dissolveOnEmpty` when a group doesn't set its own value
+   * (applied at group-creation time, i.e. `addGroup`/`createGroupFromTab`). Default:
+   * false — an emptied group persists as a drop zone until explicitly removed.
+   */
+  dissolveEmptyGroups?: boolean;
+
+  /**
+   * Auto-scroll the strip when a drag reaches its edge, for overflowing strips.
+   * Default: true.
+   */
+  autoScroll?: boolean;
+
+  /**
+   * Notification fired whenever a group transitions from having tabs to having
+   * none — whether or not it was then auto-dissolved. Purely informational; the
+   * group's fate is fully determined by `dissolveOnEmpty`/`dissolveEmptyGroups`,
+   * not by this callback's return value.
    */
   onGroupEmpty?: (groupId: string, actions: TabBarActions) => void;
 

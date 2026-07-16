@@ -3,14 +3,28 @@
   "version": "0.0.1",
   "description": "Core types, state model, and reducer for react-tabstack — zero React dependency",
   "type": "module",
-  "main": "./src/index.ts",
+  "license": "MIT",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
-    "typescript": "^5.4.5"
+    "tsup": "^8.5.1",
+    "typescript": "^5.4.5",
+    "vitest": "^2.1.9"
   }
 }

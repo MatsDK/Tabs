@@ -4,14 +4,15 @@
   "version": "0.0.0",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "dev":       "pnpm --filter demo dev",
-    "build":     "pnpm --filter './packages/*' build",
+    "dev": "pnpm --filter demo dev",
+    "build": "pnpm --filter './packages/*' build",
     "typecheck": "pnpm -r typecheck",
-    "lint":      "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
-    "lint:fix":  "eslint . --ext .ts,.tsx --fix",
-    "format":    "prettier --write .",
+    "test": "pnpm -r test",
+    "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "clean":     "find . -name 'dist' -type d -not -path '*/node_modules/*' | xargs rm -rf"
+    "clean": "find . -name 'dist' -type d -not -path '*/node_modules/*' | xargs rm -rf"
   },
   "workspaces": [
     "packages/*",

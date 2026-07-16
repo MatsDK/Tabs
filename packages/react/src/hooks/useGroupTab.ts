@@ -27,6 +27,7 @@ export interface UseGroupTabReturn {
 
 export function useGroupTab(tabId: string, groupId: string): UseGroupTabReturn {
   const { state, actions } = useTabBarContext();
+  const tab = state.tabs[tabId];
 
   const {
     setNodeRef,
@@ -38,6 +39,7 @@ export function useGroupTab(tabId: string, groupId: string): UseGroupTabReturn {
   } = useSortable({
     id: `group-tab:${tabId}`,
     data: { type: 'group-tab', tabId, groupId },
+    disabled: tab?.draggable === false,
   });
 
   const style: React.CSSProperties = {
@@ -60,6 +62,7 @@ export function useGroupTab(tabId: string, groupId: string): UseGroupTabReturn {
       role: 'tab',
       'aria-selected': state.activeTabId === tabId,
       'data-tab-id': tabId,
+      'data-ts-group-tab': tabId,
       'data-group-id': groupId,
       'data-active': state.activeTabId === tabId ? '' : undefined,
       'data-dragging': isDragging ? '' : undefined,

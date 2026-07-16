@@ -77,9 +77,28 @@ function insertSlotAt(slots: TabSlot[], slot: TabSlot, index: number): TabSlot[]
   return [...slots.slice(0, clamped), slot, ...slots.slice(clamped)];
 }
 
-// ─── Main Reducer ─────────────────────────────────────────────────────────────
+/**
+ * Clamp a target slot index (within `slots`, the array the item is being inserted
+ * back into — i.e. with the moved item already removed) so a pinned tab can never
+ * be dragged out of the pinned zone, and an unpinned tab can never be dragged into
+ * it. Non-tab items (groups) are never subject to this — groups can't be pinned.
+ */
+function clampToPinnedZone(
+  slotsWithoutItem: TabSlot[],
+  tabs: Record<string, { pinned?: boolean }>,
+  isPinnedItem: boolean,
+  toIndex: number
+): number {
+  const pinnedBoundary =
+    lastPinnedIndex({ slots: slotsWithoutItem, tabs } as TabBarState) + 1;
+  return isPinnedItem
+    ? Math.min(toIndex, pinnedBoundary)
+    : Math.max(toIndex, pinnedBoundary);
+}
 
-export function tabBarReducer<TTabMeta, TGroupMeta>(
+// ─── Main Reducer (single action application, no cross-cutting effects) ───────
+
+function applyAction<TTabMeta, TGroupMeta>(
   state: TabBarState<TTabMeta, TGroupMeta>,
   action: TabBarAction
 ): TabBarState<TTabMeta, TGroupMeta> {
@@ -145,7 +164,13 @@ export function tabBarReducer<TTabMeta, TGroupMeta>(
         (s) => !(s.type === 'tab' && s.tabId === tabId)
       );
       const clamped = clamp(toIndex, 0, withoutTab.length);
-      const newSlots = insertSlotAt(withoutTab, { type: 'tab', tabId }, clamped);
+      const pinAware = clampToPinnedZone(
+        withoutTab,
+        state.tabs,
+        !!state.tabs[tabId]?.pinned,
+        clamped
+      );
+      const newSlots = insertSlotAt(withoutTab, { type: 'tab', tabId }, pinAware);
       return { ...state, slots: newSlots };
     }
 
@@ -253,7 +278,7 @@ export function tabBarReducer<TTabMeta, TGroupMeta>(
     }
 
     case 'COLLAPSE_GROUP': {
-      return tabBarReducer(state, {
+      return applyAction(state, {
         type: 'UPDATE_GROUP',
         groupId: action.groupId,
         patch: { collapsed: true },
@@ -261,7 +286,7 @@ export function tabBarReducer<TTabMeta, TGroupMeta>(
     }
 
     case 'EXPAND_GROUP': {
-      return tabBarReducer(state, {
+      return applyAction(state, {
         type: 'UPDATE_GROUP',
         groupId: action.groupId,
         patch: { collapsed: false },
@@ -269,7 +294,7 @@ export function tabBarReducer<TTabMeta, TGroupMeta>(
     }
 
     case 'DISSOLVE_GROUP': {
-      return tabBarReducer(state, {
+      return applyAction(state, {
         type: 'REMOVE_GROUP',
         groupId: action.groupId,
         dissolve: true,
@@ -416,14 +441,36 @@ function resolveDndEvent<TTabMeta, TGroupMeta>(
       );
       if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return state;
 
-      const newSlots = [...state.slots];
-      const [moved] = newSlots.splice(fromIdx, 1);
-      newSlots.splice(toIdx, 0, moved);
+      const activeSlot = state.slots[fromIdx];
+
+      // Groups can't be pinned — sort unconditionally.
+      if (activeSlot.type === 'group') {
+        const newSlots = [...state.slots];
+        const [moved] = newSlots.splice(fromIdx, 1);
+        newSlots.splice(toIdx, 0, moved);
+        return { ...state, slots: newSlots };
+      }
+
+      // Tabs are subject to the pinned-zone boundary — this is the defensive
+      // reducer-level clamp; the primary UX enforcement lives in collision
+      // detection (react layer) so the user sees a live boundary, not a snap-back.
+      //
+      // `toIdx` is used as-is (not shifted for the removal) as the insert index
+      // into `withoutActive` — that array is already one shorter, exactly
+      // matching what a plain splice(fromIdx,1)+splice(toIdx,0,item) would do.
+      const withoutActive = state.slots.filter((_, i) => i !== fromIdx);
+      const clamped = clampToPinnedZone(
+        withoutActive,
+        state.tabs,
+        !!state.tabs[activeSlot.tabId]?.pinned,
+        toIdx
+      );
+      const newSlots = insertSlotAt(withoutActive, activeSlot, clamped);
       return { ...state, slots: newSlots };
     }
 
     case 'DROP_INTO_GROUP':
-      return tabBarReducer(state, {
+      return applyAction(state, {
         type: 'ADD_TAB_TO_GROUP',
         tabId: event.tabId,
         groupId: event.groupId,
@@ -431,14 +478,14 @@ function resolveDndEvent<TTabMeta, TGroupMeta>(
       });
 
     case 'EJECT_FROM_GROUP':
-      return tabBarReducer(state, {
+      return applyAction(state, {
         type: 'REMOVE_TAB_FROM_GROUP',
         tabId: event.tabId,
         stripIndex: event.stripIndex,
       });
 
     case 'MOVE_BETWEEN_GROUPS':
-      return tabBarReducer(state, {
+      return applyAction(state, {
         type: 'MOVE_TAB_BETWEEN_GROUPS',
         tabId: event.tabId,
         fromGroupId: event.fromGroupId,
@@ -447,7 +494,7 @@ function resolveDndEvent<TTabMeta, TGroupMeta>(
       });
 
     case 'SORT_GROUP_TABS':
-      return tabBarReducer(state, {
+      return applyAction(state, {
         type: 'MOVE_TAB_IN_GROUP',
         tabId: event.tabId,
         groupId: event.groupId,
@@ -455,12 +502,88 @@ function resolveDndEvent<TTabMeta, TGroupMeta>(
       });
 
     case 'SORT_GROUP_IN_STRIP':
-      return tabBarReducer(state, {
+      return applyAction(state, {
         type: 'MOVE_GROUP',
         groupId: event.groupId,
         toIndex: event.toIndex,
       });
   }
+}
+
+// ─── Empty-group pruning ────────────────────────────────────────────────────────
+//
+// Runs after every action. Removes a group only on the transition "had tabs before
+// this action, has none after" AND that group's own `dissolveOnEmpty` is true — a
+// freshly-created empty group (never populated) is never touched here, regardless
+// of `dissolveOnEmpty`, since that flag describes what happens when a group is
+// *emptied*, not whether an intentionally-empty group may exist.
+
+function pruneEmptyGroups<TTabMeta, TGroupMeta>(
+  prevState: TabBarState<TTabMeta, TGroupMeta>,
+  nextState: TabBarState<TTabMeta, TGroupMeta>
+): TabBarState<TTabMeta, TGroupMeta> {
+  let changed = false;
+  const groups = { ...nextState.groups };
+
+  const slots = nextState.slots.filter((slot) => {
+    if (slot.type !== 'group' || slot.tabIds.length > 0) return true;
+
+    const prevSlot = prevState.slots.find(
+      (s): s is Extract<TabSlot, { type: 'group' }> =>
+        s.type === 'group' && s.groupId === slot.groupId
+    );
+    const hadTabsBefore = !!prevSlot && prevSlot.tabIds.length > 0;
+    if (!hadTabsBefore) return true;
+
+    const group = nextState.groups[slot.groupId];
+    if (!group?.dissolveOnEmpty) return true;
+
+    changed = true;
+    delete groups[slot.groupId];
+    return false;
+  });
+
+  if (!changed) return nextState;
+  return { ...nextState, groups: groups as Record<string, TabGroup<TGroupMeta>>, slots };
+}
+
+/**
+ * Group IDs that transitioned from "had at least one tab" to "has none" between
+ * two states — whether or not they were then pruned by `dissolveOnEmpty`. Used by
+ * the react layer to fire `onGroupEmpty` uniformly for every action path (drag,
+ * context menu, programmatic `removeTab`, etc.), not just DnD-resolved ones.
+ */
+export function findEmptiedGroups<TTabMeta, TGroupMeta>(
+  prevState: TabBarState<TTabMeta, TGroupMeta>,
+  nextState: TabBarState<TTabMeta, TGroupMeta>
+): string[] {
+  const emptied: string[] = [];
+  for (const groupId of Object.keys(prevState.groups)) {
+    const prevSlot = prevState.slots.find(
+      (s): s is Extract<TabSlot, { type: 'group' }> => s.type === 'group' && s.groupId === groupId
+    );
+    const hadTabs = !!prevSlot && prevSlot.tabIds.length > 0;
+    if (!hadTabs) continue;
+
+    const nextSlot = nextState.slots.find(
+      (s): s is Extract<TabSlot, { type: 'group' }> => s.type === 'group' && s.groupId === groupId
+    );
+    const nowEmpty = !nextSlot || nextSlot.tabIds.length === 0;
+    if (nowEmpty) emptied.push(groupId);
+  }
+  return emptied;
+}
+
+// ─── Public reducer ───────────────────────────────────────────────────────────
+
+/** Applies one action, then prunes any group that just emptied and opted into `dissolveOnEmpty`. */
+export function tabBarReducer<TTabMeta, TGroupMeta>(
+  state: TabBarState<TTabMeta, TGroupMeta>,
+  action: TabBarAction
+): TabBarState<TTabMeta, TGroupMeta> {
+  const next = applyAction(state, action);
+  if (next === state) return state;
+  return pruneEmptyGroups(state, next);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -29,6 +29,33 @@ export interface CollisionContext {
 
 type Data = Record<string, unknown> | undefined;
 
+/**
+ * Nearest candidate by pointer position alone, comparing against each
+ * candidate's own midpoint on the given axis — not the dragged item's rect.
+ * closestCenter compares the *dragged item's* rect center to each candidate,
+ * which skews badly when the dragged item is much wider/taller than the
+ * candidates (e.g. a long tab name hovering a list of short ones).
+ */
+function nearestByPointer(
+  containers: Parameters<CollisionDetection>[0]['droppableContainers'],
+  pointerCoordinate: number,
+  axis: 'x' | 'y'
+) {
+  let best: (typeof containers)[number] | null = null;
+  let bestDistance = Infinity;
+  for (const container of containers) {
+    const rect = container.rect.current;
+    if (!rect) continue;
+    const mid = axis === 'x' ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
+    const distance = Math.abs(pointerCoordinate - mid);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = container;
+    }
+  }
+  return best;
+}
+
 export function createTabbedCollisionDetection(ctx: CollisionContext): CollisionDetection {
   const combineFraction = ctx.combineFraction ?? 0.8;
   const hitMargin = ctx.dropdownHitMargin ?? 16;
@@ -58,10 +85,10 @@ export function createTabbedCollisionDetection(ctx: CollisionContext): Collision
           const data = c.data.current as Data;
           return data?.type === 'group-tab' && data.groupId === groupId;
         });
-        if (dropdownItems.length > 0) {
-          const collisions = closestCenter({ ...args, droppableContainers: dropdownItems });
-          if (collisions.length > 0) return collisions;
-        }
+        // Group-tab lists are always vertically stacked regardless of the
+        // outer strip's orientation, so this is a fixed y-axis comparison.
+        const nearest = nearestByPointer(dropdownItems, pointerCoordinates.y, 'y');
+        if (nearest) return [{ id: nearest.id }];
         return [{ id: container.id }];
       }
     }

@@ -441,7 +441,7 @@ function StateInspector() {
   );
 }
 
-function DemoToolbar({ orientation, onOrientationChange }: { orientation: Orientation; onOrientationChange: (o: Orientation) => void }) {
+function DemoToolbar({ hint }: { hint: string }) {
   const { actions } = useTabBarContext();
   const addTab = () => { const id = newTabId(); actions.addTab({ id, label: `Tab ${id.split('-')[1]}`, closable: true }); };
   const addGroup = () => { const id = newGroupId(); actions.addGroup({ id, label: 'New Group', color: GROUP_COLORS[Math.floor(Math.random() * GROUP_COLORS.length)].value }); };
@@ -450,26 +450,7 @@ function DemoToolbar({ orientation, onOrientationChange }: { orientation: Orient
       <button className="btn primary" onClick={addTab}>+ New Tab</button>
       <button className="btn" onClick={addGroup}>⊞ New Group</button>
       <span className="btn-sep" />
-      <div className="orientation-toggle" role="radiogroup" aria-label="Strip orientation">
-        <button
-          className="btn" data-active={orientation === 'horizontal' ? '' : undefined}
-          role="radio" aria-checked={orientation === 'horizontal'}
-          onClick={() => onOrientationChange('horizontal')}
-        >
-          ⬌ Horizontal
-        </button>
-        <button
-          className="btn" data-active={orientation === 'vertical' ? '' : undefined}
-          role="radio" aria-checked={orientation === 'vertical'}
-          onClick={() => onOrientationChange('vertical')}
-        >
-          ⬍ Vertical
-        </button>
-      </div>
-      <span className="btn-sep" />
-      <span style={{ color: 'var(--c-muted)', fontSize: 12 }}>
-        Right-click or click ⋮ on any tab · Drag to sort · Drag into groups · "Read-only" and the Dev group are pinned to demonstrate draggable=false / openOn overrides
-      </span>
+      <span style={{ color: 'var(--c-muted)', fontSize: 12 }}>{hint}</span>
     </div>
   );
 }
@@ -497,9 +478,16 @@ function DemoDragOverlay({ activeId, data, state }: { activeId: string; data: Re
   );
 }
 
-export default function DefaultExample() {
-  const [state, setState] = useState<TabBarState>(INITIAL_STATE);
-  const [orientation, setOrientation] = useState<Orientation>('horizontal');
+export default function DefaultExample({
+  orientation = 'horizontal',
+  initialState = INITIAL_STATE,
+  hint = 'Right-click or click ⋮ on any tab · Drag to sort · Drag into groups · double-click a label to rename',
+}: {
+  orientation?: Orientation;
+  initialState?: TabBarState;
+  hint?: string;
+}) {
+  const [state, setState] = useState<TabBarState>(initialState);
   return (
     <TabBarProvider
       state={state}
@@ -509,15 +497,16 @@ export default function DefaultExample() {
       dissolveEmptyGroups={false}
       renderDragOverlay={(id, data) => <DemoDragOverlay activeId={id} data={data} state={state} />}
     >
-      <DemoToolbar orientation={orientation} onOrientationChange={setOrientation} />
-      <div className={`demo-section demo-strip-section demo-strip-section--${orientation}`}>
-        <div className="demo-section-label">
-          {orientation === 'vertical' ? 'Vertical' : 'Horizontal'} Tab Bar — drag to sort · hover/click groups · right-click or ⋮ for menu
+      <DemoToolbar hint={hint} />
+      <div className={`demo-content-row demo-content-row--${orientation}`}>
+        <div className={`demo-section demo-strip-section demo-strip-section--${orientation}`}>
+          <TabStrip />
         </div>
-        <TabStrip />
+        <div className="demo-content-main">
+          <TabPanels />
+          <StateInspector />
+        </div>
       </div>
-      <TabPanels />
-      <StateInspector />
     </TabBarProvider>
   );
 }

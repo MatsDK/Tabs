@@ -156,8 +156,7 @@ input.mi-tab-label, input.mi-group-tab-label, input.mi-group-label {
   max-height: 60vh;
   overflow-y: auto;
   padding: 6px;
-  background: color-mix(in srgb, var(--mi-zinc-050) 92%, transparent);
-  backdrop-filter: blur(6px);
+  background: var(--mi-zinc-050);
   border: 1px solid var(--mi-zinc-200);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.04);

@@ -133,6 +133,7 @@
 .ig-group[data-combine-target] .ig-group-head {
   box-shadow: 0 0 0 2px var(--c-surface), 0 0 0 3.5px var(--group-color, var(--c-accent));
 }
+.ig-group[data-dragging] { opacity: 0.4; }
 
 .ig-group-head {
   display: flex;
@@ -150,7 +151,6 @@
   user-select: none;
 }
 .ig-group-head:hover { background: color-mix(in srgb, var(--group-color, var(--c-accent)) 22%, var(--c-bg)); }
-.ig-group-head[data-dragging] { opacity: 0.4; }
 .ig-group-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--group-color, var(--c-accent)); flex-shrink: 0; }
 .ig-group-label { max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
 .ig-group-count { font-size: 10.5px; color: var(--c-muted); }

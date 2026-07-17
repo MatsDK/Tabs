@@ -240,9 +240,8 @@ function InlineGroupMember({ tabId, groupId }: { tabId: string; groupId: string 
 
 function InlineGroup({ groupId, tabIds }: { groupId: string; tabIds: string[] }) {
   const { state, actions } = useTabBarContext();
-  const group = state.groups[groupId];
   const {
-    setNodeRef, attributes, listeners, style, isDragging, isOver, isCombineTarget, color, label,
+    setNodeRef, attributes, listeners, style, isDragging, isOver, isCombineTarget, collapsed, color, label,
   } = useTabGroup(groupId);
   const labelRef = useRef<EditableLabelHandle>(null);
   const startRename = useCallback(() => labelRef.current?.startEditing(), []);
@@ -258,22 +257,33 @@ function InlineGroup({ groupId, tabIds }: { groupId: string; tabIds: string[] })
     data: { type: 'group-dropdown', groupId },
   });
 
-  if (!group) return null;
-  const collapsed = !!group.collapsed;
+  if (!state.groups[groupId]) return null;
   const toggle = () => (collapsed ? actions.expandGroup(groupId) : actions.collapseGroup(groupId));
 
   return (
+    // setNodeRef/style (dnd-kit's transform) live on THIS wrapper, not just
+    // the head chip below — this div is the group's full visual footprint
+    // (head + members + the color-bar border), and it's what the top-level
+    // strip actually reflows around during a drag. Registering the sortable
+    // node on the head chip alone measured and moved only that small chip,
+    // leaving the members row (and the color bar drawn on this wrapper)
+    // visually behind — the bar "not moving" during a drag was exactly that:
+    // the transformed node and the visible group footprint were two
+    // different elements. Drag *activation* (listeners) stays scoped to the
+    // head chip only, so grabbing a member tab still starts a tab drag, not
+    // a group drag.
     <div
+      ref={setNodeRef} style={{ ...style, '--group-color': color } as React.CSSProperties}
       className="ig-group"
       data-collapsed={collapsed ? '' : undefined}
       data-over={isOver ? '' : undefined}
       data-combine-target={isCombineTarget ? '' : undefined}
-      style={{ '--group-color': color } as React.CSSProperties}
+      data-dragging={isDragging ? '' : undefined}
     >
       <TabContextMenu target={target} ctx={ctx} icons={MENU_ICONS} buildMenuItems={buildMenuItems}>
         <div
-          ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style}
-          className="ig-group-head" data-dragging={isDragging ? '' : undefined}
+          {...(attributes as any)} {...(listeners as any)}
+          className="ig-group-head"
           onClick={e => { e.stopPropagation(); toggle(); }}
         >
           <span className="ig-group-dot" />

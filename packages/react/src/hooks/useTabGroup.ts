@@ -55,6 +55,14 @@ export interface UseTabGroupReturn {
   isOverDwell: boolean;
   /** The currently active tab lives inside this group */
   containsActive: boolean;
+  /**
+   * The group's persistent collapsed flag (TabGroup.collapsed) — independent of
+   * `isOpen`, which tracks the hover/drag-driven dropdown coordinator. Use
+   * this one for a UI where a group's content toggles on click and stays
+   * that way (e.g. inline-expanding groups); use `isOpen` for a floating
+   * dropdown that opens/closes on hover.
+   */
+  collapsed: boolean;
   /** The tabs inside this group (in order) */
   tabs: Tab[];
   /** Same tabs, as bare ids — pass straight through to <SortableContext items={...}> */
@@ -252,6 +260,7 @@ export function useTabGroup(groupId: string): UseTabGroupReturn {
     isCombineTarget,
     isOverDwell,
     containsActive,
+    collapsed: !!group?.collapsed,
     tabs,
     tabIds,
     color: group?.color,

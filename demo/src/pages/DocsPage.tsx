@@ -36,7 +36,7 @@ function DocsSection({ id, title, children }: { id: string; title: string; child
 const HOOKS = [
   { name: 'useTabState(initialState?)', description: 'Batteries-included: a reducer plus every action, for uncontrolled usage without wiring your own state.' },
   { name: 'useTab(tabId)', description: 'Make a DOM node a draggable, sortable, selectable tab in the top-level strip.' },
-  { name: 'useTabGroup(groupId)', description: "A draggable group pill: open state, hover/combine state, this group's ordered tabs." },
+  { name: 'useTabGroup(groupId)', description: "A draggable group pill: open/collapsed state, hover/combine state, this group's ordered tabs." },
   { name: 'useGroupTab(tabId, groupId)', description: "A tab rendered inside an open group's dropdown — same drag identity as useTab." },
   { name: 'useTabStrip()', description: 'The strip container: ordered slots, sortable ids/strategy, scroll-overflow state.' },
   { name: 'useTabPanel(tabId)', description: 'Visibility + ARIA attributes for a tab\'s content panel.' },
@@ -68,7 +68,7 @@ const TAB_FIELDS = [
 const GROUP_FIELDS = [
   { name: 'id / label', type: 'string', description: 'Required.' },
   { name: 'color', type: 'string', description: 'CSS color — the library never applies it, your components read it.' },
-  { name: 'collapsed', type: 'boolean', description: 'Visual collapse flag; tabs stay reachable.' },
+  { name: 'collapsed', type: 'boolean', description: "Persistent collapse flag, read back via useTabGroup()'s own collapsed field — independent of the dropdown coordinator's isOpen. See “Group presentation” below." },
   { name: 'draggable', type: 'boolean', default: 'true', description: 'Opt this one group out of dragging.' },
   { name: 'openOn', type: "'hover' | 'click' | 'hover+click'", description: 'Per-group override of the provider default.' },
   { name: 'dissolveOnEmpty', type: 'boolean', description: "Per-group override of the provider's dissolveEmptyGroups." },
@@ -97,6 +97,7 @@ export default function DocsPage() {
         <a href="#hooks" onClick={scrollToSection('hooks')}>Hooks</a>
         <a href="#provider" onClick={scrollToSection('provider')}>Provider</a>
         <a href="#config" onClick={scrollToSection('config')}>Tab / group options</a>
+        <a href="#group-presentation" onClick={scrollToSection('group-presentation')}>Group presentation</a>
       </nav>
 
       <div className="docs-content">
@@ -105,7 +106,7 @@ export default function DocsPage() {
             react-tabstack is a headless, hooks-first tab bar library. Every hook returns
             <code> {'{ setNodeRef, attributes, listeners, style }'} </code>
             — the same shape dnd-kit's own <code>useSortable</code> returns — for you to spread onto your own markup. The library never
-            renders a single DOM node itself; the five examples on the previous page all share the exact same hooks with entirely
+            renders a single DOM node itself; the six examples on the previous page all share the exact same hooks with entirely
             different presentation layers.
           </p>
         </DocsSection>
@@ -182,6 +183,47 @@ type TabSlot =
           <PropsTable rows={TAB_FIELDS} />
           <h3 className="docs-subhead">TabGroup</h3>
           <PropsTable rows={GROUP_FIELDS} />
+        </DocsSection>
+
+        <DocsSection id="group-presentation" title="Group presentation: dropdown vs. inline">
+          <p>
+            There's no separate API for this — <code>useTabGroup</code> and <code>useGroupTab</code> are the exact same hooks
+            whether a group's tabs render in a floating dropdown ("Tab groups") or expand inline in the strip itself,
+            Chrome-style ("Inline groups"). What differs is (1) which state drives visibility, and (2) how you wire up the
+            container that represents a group's expanded content.
+          </p>
+
+          <h3 className="docs-subhead">Two independent "is this group's content visible" flags</h3>
+          <PropsTable rows={[
+            { name: 'isOpen', type: 'boolean · useTabGroup()', description: 'Driven by the hover/drag-hover dropdown coordinator (dwell timers, only one group open at a time). Use it for a floating dropdown.' },
+            { name: 'collapsed', type: 'boolean · useTabGroup()', description: "The group's own persistent TabGroup.collapsed field, toggled explicitly via collapse()/expand() and unaffected by hover. Use it for an inline, always-mounted presentation." },
+          ]} />
+          <p>You can use either, both, or neither — nothing about them conflicts, they're just two independent mechanisms for the same underlying question.</p>
+
+          <h3 className="docs-subhead">The container-droppable contract</h3>
+          <p>
+            Wherever you render a group's expanded content, collision detection needs one <code>useDroppable</code> registered
+            for that container carrying <code>type: 'group-dropdown'</code> and the group's id. That's the whole contract —
+            the id string you give the droppable itself is never inspected, so name and place it however your layout needs.
+            It's what lets a drag resolve precise placement inside the container (nearest item by pointer position) instead of
+            only "somewhere in this group."
+          </p>
+          <Code>{`const { setNodeRef } = useDroppable({
+  id: 'anything-you-want',   // not read by collision detection
+  data: { type: 'group-dropdown', groupId },
+});`}</Code>
+
+          <h3 className="docs-subhead">Laying members out horizontally instead of vertically</h3>
+          <p>
+            A dropdown list's members are usually a vertical <code>SortableContext</code>; an inline group's are a horizontal
+            row instead — pass <code>horizontalListSortingStrategy</code> rather than the vertical one. And put the drag
+            registration (<code>useTabGroup</code>'s <code>setNodeRef</code>/<code>style</code>) on the element representing
+            the group's <em>full visual footprint</em> — label plus members — not just a small handle inside it. dnd-kit only
+            measures and repositions whatever node <code>setNodeRef</code> is attached to during a drag; attaching it to a
+            small handle while the rest of the group sits in a larger sibling element makes that larger part visually lag
+            behind the handle mid-drag. Drag <em>activation</em> (<code>listeners</code>) can still be scoped to just the
+            handle — only the sizing/positioning ref needs to cover the whole thing.
+          </p>
         </DocsSection>
       </div>
     </div>

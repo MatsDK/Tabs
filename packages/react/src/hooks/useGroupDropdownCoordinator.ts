@@ -80,6 +80,22 @@ export function useGroupDropdownCoordinator(dwell: DwellConfig): GroupDropdownCo
       if (openGroupIdRef.current && !closeTimerRef.current) {
         closeTimerRef.current = setTimeout(() => {
           closeTimerRef.current = null;
+          // A tab's own ⋮/right-click menu (or a submenu within it) can be
+          // portalled outside the open group's own DOM subtree, so a real
+          // mouseleave fires on the group when the pointer moves onto it —
+          // useTabGroup's handleMouseLeave already tries to catch this via
+          // event.relatedTarget, but that's a snapshot of where the pointer
+          // moved *at that instant*, which is fragile if there's any delay
+          // between the click that opens the nested menu and it actually
+          // landing in the DOM. This is the last line of defense, checked
+          // right as the timer is about to actually close something: if any
+          // menu is open anywhere, don't close out from under it, regardless
+          // of why the relatedTarget check didn't already catch it. A global
+          // (not group-scoped) check is deliberately conservative — normal
+          // usage only ever has one menu open at a time, and staying open a
+          // little longer than ideal is a far better failure mode than
+          // closing mid-interaction.
+          if (document.querySelector('[role="menu"]')) return;
           setOpenGroupId(null);
         }, dwell.close);
       }

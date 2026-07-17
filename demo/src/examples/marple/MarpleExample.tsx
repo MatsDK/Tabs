@@ -9,6 +9,8 @@ import { useDroppable } from '@dnd-kit/core';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import type { TabSlot, TabBarState, ContextMenuTarget, MenuItem, TabBarActions } from '@react-tabstack/react';
 import { EditableLabel, type EditableLabelHandle } from '../shared/EditableLabel.js';
+import { DotsMenu, type MenuCtx } from '../shared/contextMenu.js';
+import { useFocusGroup } from '../shared/useFocusGroup.js';
 import './marple-theme.css';
 
 const stopPD = (e: React.PointerEvent) => e.stopPropagation();
@@ -31,11 +33,6 @@ const IconFolder = () => (
 const IconChevron = () => (
   <svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
     <path d="M2.5 4.5 6 8l3.5-3.5" />
-  </svg>
-);
-const IconSubArrow = () => (
-  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 4h4M4 2l2 2-2 2" />
   </svg>
 );
 const IconEject = () => (
@@ -86,12 +83,13 @@ let _tc = 10, _gc = 10;
 const newTabId = () => `mi-${++_tc}`;
 const newGroupId = () => `mi-g${++_gc}`;
 
-interface MiMenuCtx {
-  startRename: () => void;
-  focusGroup: (groupId: string) => void;
-}
+const MI_MENU_CLASSES = {
+  content: 'mi-menu', item: 'mi-menu-item', itemIcon: 'mi-menu-icon', separator: 'mi-menu-sep',
+  subTrigger: 'mi-menu-item', subContent: 'mi-menu', subArrow: 'mi-menu-sub-arrow',
+  swatches: 'mi-menu-swatches', swatch: 'mi-menu-swatch',
+};
 
-function buildMiMenuItems(target: ContextMenuTarget, actions: TabBarActions, state: TabBarState, ctx: MiMenuCtx): MenuItem[] {
+function buildMiMenuItems(target: ContextMenuTarget, actions: TabBarActions, state: TabBarState, ctx: MenuCtx): MenuItem[] {
   const groups = Object.values(state.groups);
   const { startRename, focusGroup } = ctx;
 
@@ -141,72 +139,20 @@ function buildMiMenuItems(target: ContextMenuTarget, actions: TabBarActions, sta
   return [];
 }
 
-function MiMenuItem({ item, actions }: { item: MenuItem; actions: TabBarActions }) {
-  if (item.type === 'separator') return <DropdownMenu.Separator className="mi-menu-sep" />;
-
-  if ('label' in item && item.label === '__swatches__' && 'submenu' in item && item.submenu) {
-    return (
-      <div className="mi-menu-swatches">
-        {item.submenu.map((s, i) => (
-          <button
-            key={i} type="button" className="mi-menu-swatch"
-            data-active={'icon' in s && s.icon === 'active' ? '' : undefined}
-            style={{ background: 'label' in s ? s.label : undefined }}
-            onClick={() => 'action' in s && s.action?.(actions)}
-            aria-label={'label' in s ? s.label : 'Color'}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  if ('submenu' in item && item.submenu?.length) return (
-    <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger className="mi-menu-item">
-        {'icon' in item && item.icon && <span className="mi-menu-icon">{MI_ICONS[item.icon]}</span>}
-        {item.label}<span style={{ marginLeft: 'auto', color: 'var(--mi-zinc-400)' }}><IconSubArrow /></span>
-      </DropdownMenu.SubTrigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.SubContent className="mi-menu">
-          {item.submenu.map((s, i) => <MiMenuItem key={i} item={s} actions={actions} />)}
-        </DropdownMenu.SubContent>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Sub>
-  );
-
-  return (
-    <DropdownMenu.Item
-      className="mi-menu-item" data-destructive={'destructive' in item && item.destructive ? '' : undefined}
-      onSelect={() => 'action' in item && item.action?.(actions)}
-    >
-      {'icon' in item && item.icon && <span className="mi-menu-icon">{MI_ICONS[item.icon]}</span>}
-      {'label' in item ? item.label : ''}
-    </DropdownMenu.Item>
-  );
+/** This example's "reveal a group" behavior: open its floating dropdown. */
+function useMiMenuCtx(target: ContextMenuTarget, startRename: () => void): MenuCtx {
+  const { dropdown } = useTabBarContext();
+  const focusGroup = useFocusGroup(target, (groupId) => dropdown.openImmediate(groupId));
+  return { startRename, focusGroup };
 }
 
 function MiSettingsMenu({ target, startRename }: { target: ContextMenuTarget; startRename: () => void }) {
-  const { actions, state, dropdown } = useTabBarContext();
-  const ctx: MiMenuCtx = {
-    startRename,
-    focusGroup: (groupId) => {
-      if (target.type === 'tab' || target.type === 'group-tab') actions.setActiveTab(target.tabId);
-      dropdown.openImmediate(groupId);
-    },
-  };
-  const items = buildMiMenuItems(target, actions, state, ctx);
-  if (!items.length) return null;
+  const ctx = useMiMenuCtx(target, startRename);
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <button className="mi-settings-btn" onPointerDown={stopPD} onClick={e => e.stopPropagation()} aria-label="More options"><IconMore /></button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content className="mi-menu" align="start" sideOffset={4}>
-          {items.map((item, i) => <MiMenuItem key={i} item={item} actions={actions} />)}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+    <DotsMenu
+      target={target} ctx={ctx} icons={MI_ICONS} buildMenuItems={buildMiMenuItems} classNames={MI_MENU_CLASSES}
+      triggerIcon={<IconMore />} triggerClassName="mi-settings-btn"
+    />
   );
 }
 

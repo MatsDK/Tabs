@@ -106,7 +106,7 @@ export default function DocsPage() {
             react-tabstack is a headless, hooks-first tab bar library. Every hook returns
             <code> {'{ setNodeRef, attributes, listeners, style }'} </code>
             — the same shape dnd-kit's own <code>useSortable</code> returns — for you to spread onto your own markup. The library never
-            renders a single DOM node itself; the six examples on the previous page all share the exact same hooks with entirely
+            renders a single DOM node itself; the seven examples on the previous page all share the exact same hooks with entirely
             different presentation layers.
           </p>
         </DocsSection>

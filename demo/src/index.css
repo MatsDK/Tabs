@@ -371,12 +371,13 @@ input.tab-label, input.group-label, input.group-tab-label {
 .group-pill[data-open] .group-chevron { transform: rotate(180deg); }
 
 /* ─── Group Dropdown ─────────────────────────────────────────────────────── */
-.group-dropdown-anchor { position: relative; }
-
+/* position: fixed, not absolute — the left/top we set inline come straight
+   from getBoundingClientRect() (viewport-relative) via useStickyPosition.
+   position: absolute here would measure from the top of the *document*
+   instead, so it drifted the moment the page was scrolled and could inflate
+   the page's scrollable height (that "jumps down when opening a dropdown"). */
 .group-dropdown {
-  position: absolute;
-  top: calc(100% + 3px);
-  left: 0;
+  position: fixed;
   z-index: 100;
   background: var(--c-bg);
   border: 1px solid var(--c-border);

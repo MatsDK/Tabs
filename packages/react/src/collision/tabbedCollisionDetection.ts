@@ -14,9 +14,14 @@ import type { Orientation } from '../axis.js';
 //      items are; with a dropdown open but no pill under the pointer, the
 //      dropdown stays sticky so small excursions don't cancel the interaction.
 //   3. In-strip pill combine — pointer physically inside a pill's middle
-//      (combineFraction) targets the pill. Pointer position, not the dragged
-//      rect: a wide tab hovering a short pill must still combine.
-//   4. Fallback — closestCenter over strip-level sortables (native make-space feel).
+//      (combineFraction), with a forgiveness margin — targets the pill.
+//   4. Fallback — nearest strip-level sortable BY POINTER POSITION, not
+//      closestCenter's dragged-rect-vs-candidate comparison (falls back to
+//      closestCenter only when there's no pointer, i.e. keyboard drags).
+//
+// Every layer resolves by where the POINTER physically is, never by the
+// dragged item's own rect — a long tab name grabbed mid-label must still
+// combine into or sort correctly against much narrower targets.
 
 export interface CollisionContext {
   orientation: Orientation;
@@ -63,8 +68,20 @@ export function createTabbedCollisionDetection(ctx: CollisionContext): Collision
       const t = (c.data.current as Data)?.type;
       return t === 'tab' || t === 'group';
     });
-    const sortFallback = () =>
-      closestCenter({ ...args, droppableContainers: stripItems.length > 0 ? stripItems : candidates });
+    // Pointer-based, not rect-based: closestCenter compares the DRAGGED item's
+    // own rect to each candidate, which skews hard when that rect is much
+    // wider/narrower than the candidates (a long tab name grabbed mid-label
+    // drifting over a short pill). Nearest-by-pointer has no opinion about the
+    // dragged item's size at all. Falls back to closestCenter only when there's
+    // no pointer to go by (keyboard-driven drags).
+    const sortFallback = () => {
+      const pool = stripItems.length > 0 ? stripItems : candidates;
+      if (p) {
+        const nearest = nearestByPointer(pool, p, 'xy');
+        if (nearest) return [{ id: nearest.id }];
+      }
+      return closestCenter({ ...args, droppableContainers: pool });
+    };
 
     if (!p || activeData?.type === 'group') return sortFallback();
 
@@ -121,13 +138,17 @@ export function createTabbedCollisionDetection(ctx: CollisionContext): Collision
       }
     }
 
-    // 3. Pointer physically inside a pill's combine zone
+    // 3. Pointer physically inside a pill's combine zone (with a forgiveness
+    // margin — a short-labeled pill can be a genuinely small target, and
+    // requiring pixel-exact placement under a wide drag overlay is unusable)
     for (const c of stripItems) {
       const d = c.data.current as Data;
       if (d?.type !== 'group') continue;
       const r = c.rect.current;
       if (!r) continue;
-      const inside = p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
+      const inside =
+        p.x >= r.left - hitMargin && p.x <= r.left + r.width + hitMargin &&
+        p.y >= r.top - hitMargin && p.y <= r.top + r.height + hitMargin;
       if (!inside) continue;
       const range = pillMainRange(c);
       if (range) {

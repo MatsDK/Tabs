@@ -83,4 +83,31 @@ describe('TabBarProvider — actions from context actually commit', () => {
     const groupSlot = capturedState.slots.find((s) => s.type === 'group');
     expect(groupSlot?.type === 'group' && groupSlot.tabIds).toContain('t1');
   });
+
+  it('two actions fired in the same synchronous handler both apply (regression: dispatch closed over the pre-click state prop, so the second call\'s onStateChange(next) fully overwrote the first\'s instead of composing — e.g. a "Move to Group" menu item that also calls setActiveTab silently dropped the group move)', () => {
+    render(<Harness />);
+    // Both calls inside one act() — no re-render (and therefore no fresh
+    // `state` prop) between them, exactly like two actions fired from the
+    // same click handler before React has a chance to flush.
+    act(() => {
+      capturedActions.addTabToGroup('t1', 'g1');
+      capturedActions.setActiveTab('t1');
+    });
+    const groupSlot = capturedState.slots.find((s) => s.type === 'group');
+    expect(groupSlot?.type === 'group' && groupSlot.tabIds).toContain('t1');
+    expect(capturedState.activeTabId).toBe('t1');
+  });
+
+  it('moveTabToGroup resolves its source group against the mid-tick state, not the pre-handler snapshot', () => {
+    render(<Harness />);
+    act(() => {
+      capturedActions.createGroupFromTab('t2', { id: 'g2', label: 'G2' });
+      // t2 only exists inside g2 as of the line above, within this same tick.
+      capturedActions.moveTabToGroup('t2', 'g1');
+    });
+    const g1 = capturedState.slots.find((s) => s.type === 'group' && s.groupId === 'g1');
+    const g2 = capturedState.slots.find((s) => s.type === 'group' && s.groupId === 'g2');
+    expect(g1?.type === 'group' && g1.tabIds).toContain('t2');
+    expect(g2?.type === 'group' && g2.tabIds).not.toContain('t2');
+  });
 });

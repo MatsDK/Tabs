@@ -291,6 +291,21 @@ export function TabBarProvider({
   // callback's second argument) — broken via a ref, set once actions exist.
   const actionsRef = useRef<TabBarActions | null>(null);
 
+  // Tracks the most recently *committed* state, updated synchronously inside
+  // commit() itself — not just from the `state` prop on each render. Two
+  // actions fired back-to-back in the same event handler (e.g. a context menu
+  // item that both moves a tab into a group and activates it) each call
+  // commit() before React has re-rendered with the first call's result, so a
+  // dispatch reading the `state` prop directly would compute the second
+  // action against the same *pre-first-action* snapshot — and since
+  // onStateChange is a plain value setter (controlled, like <input>), the
+  // second call's value fully overwrites the first's instead of composing,
+  // silently discarding it. Reading/writing through this ref instead means
+  // each dispatch always builds on the immediately preceding one, regardless
+  // of whether React has re-rendered yet.
+  const latestStateRef = useRef(state);
+  latestStateRef.current = state;
+
   const commit = useCallback(
     (next: TabBarState, intentionallyRemovedGroupIds?: string[]) => {
       // Exclude groups the action *itself* just deliberately removed/dissolved —
@@ -299,20 +314,21 @@ export function TabBarProvider({
       // an identical before/after diff. The action creators below know which
       // case they're in, so they pass the exclusion through.
       const exclude = new Set(intentionallyRemovedGroupIds ?? []);
-      const emptied = findEmptiedGroups(state, next).filter((id) => !exclude.has(id));
+      const emptied = findEmptiedGroups(latestStateRef.current, next).filter((id) => !exclude.has(id));
+      latestStateRef.current = next;
       onStateChange(next);
       if (actionsRef.current) {
         for (const groupId of emptied) onGroupEmpty?.(groupId, actionsRef.current);
       }
     },
-    [state, onStateChange, onGroupEmpty]
+    [onStateChange, onGroupEmpty]
   );
 
   const actions = useMemo(() => {
-    const built = buildActions(state, commit, dissolveEmptyGroups);
+    const built = buildActions(() => latestStateRef.current, commit, dissolveEmptyGroups);
     actionsRef.current = built;
     return built;
-  }, [state, commit, dissolveEmptyGroups]);
+  }, [commit, dissolveEmptyGroups]);
 
   return (
     <TabBarProviderInternal
@@ -328,9 +344,11 @@ export function TabBarProvider({
   );
 }
 
-/** Build TabBarActions bound to a controlled commit function. */
+/** Build TabBarActions bound to a controlled commit function. getState() always
+ *  returns the latest committed state, even mid-tick across multiple dispatches
+ *  before React re-renders — see the comment on latestStateRef above. */
 function buildActions(
-  state: TabBarState,
+  getState: () => TabBarState,
   commit: (s: TabBarState, intentionallyRemovedGroupIds?: string[]) => void,
   dissolveEmptyGroupsDefault: boolean
 ): TabBarActions {
@@ -340,7 +358,7 @@ function buildActions(
     // deliberate "Ungroup"/"Close group" doesn't also fire the "went empty"
     // notification for the very group the user just chose to remove.
     const intentional = action.type === 'REMOVE_GROUP' || action.type === 'DISSOLVE_GROUP' ? [action.groupId] : undefined;
-    commit(tabBarReducer(state, action), intentional);
+    commit(tabBarReducer(getState(), action), intentional);
   };
 
   const withGroupDefaults = (group: TabGroup): TabGroup => ({
@@ -367,7 +385,7 @@ function buildActions(
     removeTabFromGroup: (tabId, stripIndex) => dispatch({ type: 'REMOVE_TAB_FROM_GROUP', tabId, stripIndex }),
     moveTabInGroup: (tabId, groupId, toIndex) => dispatch({ type: 'MOVE_TAB_IN_GROUP', tabId, groupId, toIndex }),
     moveTabToGroup: (tabId, toGroupId, toIndex) => {
-      const fromSlot = state.slots.find((s) => s.type === 'group' && s.tabIds.includes(tabId));
+      const fromSlot = getState().slots.find((s) => s.type === 'group' && s.tabIds.includes(tabId));
       if (fromSlot?.type === 'group') {
         dispatch({ type: 'MOVE_TAB_BETWEEN_GROUPS', tabId, fromGroupId: fromSlot.groupId, toGroupId, toIndex });
       } else {

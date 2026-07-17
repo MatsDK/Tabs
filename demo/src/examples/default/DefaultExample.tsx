@@ -9,7 +9,7 @@ import { useDroppable } from '@dnd-kit/core';
 import * as ContextMenu from '@radix-ui/react-context-menu';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import type { TabSlot, TabBarState, ContextMenuTarget, MenuItem, TabBarActions, Orientation } from '@react-tabstack/react';
-import { EditableLabel } from '../shared/EditableLabel.js';
+import { EditableLabel, type EditableLabelHandle } from '../shared/EditableLabel.js';
 
 const stopPD = (e: React.PointerEvent) => e.stopPropagation();
 
@@ -113,17 +113,32 @@ let _tc = 10, _gc = 10;
 const newTabId = () => `tab-${++_tc}`;
 const newGroupId = () => `group-${++_gc}`;
 
-function buildMenuItems(target: ContextMenuTarget, actions: TabBarActions, state: TabBarState): MenuItem[] {
+interface MenuCtx {
+  /** Opens the inline-editable input on whichever tab/group this menu belongs to. */
+  startRename: () => void;
+  /** Selects the moved tab and opens its destination group's dropdown, so a
+   *  "Move to Group"/"Move to New Group" click has an immediate, visible result
+   *  instead of silently relocating a tab into a dropdown that stays closed. */
+  focusGroup: (groupId: string) => void;
+}
+
+function buildMenuItems(target: ContextMenuTarget, actions: TabBarActions, state: TabBarState, ctx: MenuCtx): MenuItem[] {
   const groups = Object.values(state.groups);
+  const { startRename, focusGroup } = ctx;
 
   if (target.type === 'tab') {
     const { tabId } = target;
     return [
+      { label: 'Rename…', icon: 'rename', action: startRename },
       ...(groups.length > 0 ? [{
         label: 'Move to Group', icon: 'folder',
-        submenu: groups.map(g => ({ label: g.label, action: () => actions.addTabToGroup(tabId, g.id) })),
+        submenu: groups.map(g => ({ label: g.label, action: () => { actions.addTabToGroup(tabId, g.id); focusGroup(g.id); } })),
       }] : []),
-      { label: 'Move to New Group', icon: 'newGroup', action: () => actions.createGroupFromTab(tabId, { id: newGroupId(), label: 'New Group', color: '#6e7681' }) },
+      { label: 'Move to New Group', icon: 'newGroup', action: () => {
+        const id = newGroupId();
+        actions.createGroupFromTab(tabId, { id, label: 'New Group', color: '#6e7681' });
+        focusGroup(id);
+      } },
       { type: 'separator' as const },
       { label: 'Close Tab', icon: 'close', destructive: true, action: () => actions.removeTab(tabId) },
     ];
@@ -133,10 +148,11 @@ function buildMenuItems(target: ContextMenuTarget, actions: TabBarActions, state
     const { tabId, groupId } = target;
     const otherGroups = groups.filter(g => g.id !== groupId);
     return [
+      { label: 'Rename…', icon: 'rename', action: startRename },
       { label: 'Eject from Group', icon: 'eject', action: () => actions.removeTabFromGroup(tabId) },
       ...(otherGroups.length > 0 ? [{
         label: 'Move to Group', icon: 'folder',
-        submenu: otherGroups.map(g => ({ label: g.label, action: () => actions.moveTabToGroup(tabId, g.id) })),
+        submenu: otherGroups.map(g => ({ label: g.label, action: () => { actions.moveTabToGroup(tabId, g.id); focusGroup(g.id); } })),
       }] : []),
       { type: 'separator' as const },
       { label: 'Close Tab', icon: 'close', destructive: true, action: () => actions.removeTab(tabId) },
@@ -145,11 +161,19 @@ function buildMenuItems(target: ContextMenuTarget, actions: TabBarActions, state
 
   if (target.type === 'group') {
     const { groupId } = target;
+    const currentColor = state.groups[groupId]?.color;
     return [
-      { label: 'Rename…', icon: 'rename', action: () => { const n = prompt('New name:'); if (n) actions.updateGroup(groupId, { label: n }); } },
+      { label: 'Rename…', icon: 'rename', action: startRename },
       { label: 'Ungroup All', icon: 'eject', action: () => actions.dissolveGroup(groupId) },
       { type: 'separator' as const },
-      { label: 'Color', icon: 'palette', submenu: GROUP_COLORS.map(c => ({ label: c.label, action: () => actions.updateGroup(groupId, { color: c.value }) })) },
+      {
+        label: '__swatches__',
+        submenu: GROUP_COLORS.map(c => ({
+          label: c.value,
+          icon: c.value === currentColor ? 'active' : undefined,
+          action: () => actions.updateGroup(groupId, { color: c.value }),
+        })),
+      },
       { type: 'separator' as const },
       { label: 'Close Group', icon: 'close', destructive: true, action: () => actions.removeGroup(groupId) },
     ];
@@ -169,8 +193,26 @@ function ItemIcon({ item }: { item: MenuItem }) {
   return <span className="context-menu-item-icon">{MENU_ICONS[item.icon]}</span>;
 }
 
+function SwatchGrid({ item, actions }: { item: MenuItem; actions: TabBarActions }) {
+  if (!('submenu' in item) || !item.submenu) return null;
+  return (
+    <div className="context-menu-swatches">
+      {item.submenu.map((s, i) => (
+        <button
+          key={i} type="button" className="context-menu-swatch"
+          data-active={'icon' in s && s.icon === 'active' ? '' : undefined}
+          style={{ background: 'label' in s ? s.label : undefined }}
+          onClick={() => 'action' in s && s.action?.(actions)}
+          aria-label={'label' in s ? s.label : 'Color'}
+        />
+      ))}
+    </div>
+  );
+}
+
 function CxItem({ item, actions }: { item: MenuItem; actions: TabBarActions }) {
   if (item.type === 'separator') return <ContextMenu.Separator className="context-menu-separator" />;
+  if ('label' in item && item.label === '__swatches__') return <SwatchGrid item={item} actions={actions} />;
   if ('submenu' in item && item.submenu?.length) return (
     <ContextMenu.Sub>
       <ContextMenu.SubTrigger className="context-menu-sub-trigger">
@@ -195,6 +237,7 @@ function CxItem({ item, actions }: { item: MenuItem; actions: TabBarActions }) {
 
 function DdItem({ item, actions }: { item: MenuItem; actions: TabBarActions }) {
   if (item.type === 'separator') return <DropdownMenu.Separator className="context-menu-separator" />;
+  if ('label' in item && item.label === '__swatches__') return <SwatchGrid item={item} actions={actions} />;
   if ('submenu' in item && item.submenu?.length) return (
     <DropdownMenu.Sub>
       <DropdownMenu.SubTrigger className="context-menu-sub-trigger">
@@ -217,9 +260,21 @@ function DdItem({ item, actions }: { item: MenuItem; actions: TabBarActions }) {
   );
 }
 
-function TabContextMenu({ target, children }: { target: ContextMenuTarget; children: React.ReactNode }) {
+function useMenuCtx(target: ContextMenuTarget, startRename: () => void): MenuCtx {
+  const { actions, dropdown } = useTabBarContext();
+  return {
+    startRename,
+    focusGroup: (groupId: string) => {
+      if (target.type === 'tab' || target.type === 'group-tab') actions.setActiveTab(target.tabId);
+      dropdown.openImmediate(groupId);
+    },
+  };
+}
+
+function TabContextMenu({ target, startRename, children }: { target: ContextMenuTarget; startRename?: () => void; children: React.ReactNode }) {
   const { actions, state } = useTabBarContext();
-  const items = buildMenuItems(target, actions, state);
+  const ctx = useMenuCtx(target, startRename ?? (() => {}));
+  const items = buildMenuItems(target, actions, state, ctx);
   if (!items.length) return <>{children}</>;
   return (
     <ContextMenu.Root>
@@ -233,9 +288,10 @@ function TabContextMenu({ target, children }: { target: ContextMenuTarget; child
   );
 }
 
-function DotsMenu({ target }: { target: ContextMenuTarget }) {
+function DotsMenu({ target, startRename }: { target: ContextMenuTarget; startRename: () => void }) {
   const { actions, state } = useTabBarContext();
-  const items = buildMenuItems(target, actions, state);
+  const ctx = useMenuCtx(target, startRename);
+  const items = buildMenuItems(target, actions, state, ctx);
   if (!items.length) return null;
   return (
     <DropdownMenu.Root>
@@ -257,14 +313,16 @@ function TabItem({ tabId }: { tabId: string }) {
   const { state, actions } = useTabBarContext();
   const tab = state.tabs[tabId];
   const { setNodeRef, attributes, listeners, style, activate, close } = useTab(tabId);
+  const labelRef = useRef<EditableLabelHandle>(null);
+  const startRename = useCallback(() => labelRef.current?.startEditing(), []);
   if (!tab) return null;
   return (
-    <TabContextMenu target={{ type: 'tab', tabId }}>
+    <TabContextMenu target={{ type: 'tab', tabId }} startRename={startRename}>
       <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style}
         className="tab" onClick={activate} title={tab.draggable === false ? `${tab.label} (not draggable)` : tab.label}>
         {tab.draggable === false && <span className="tab-lock-icon"><IconLock /></span>}
-        <EditableLabel value={tab.label} className="tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
-        <DotsMenu target={{ type: 'tab', tabId }} />
+        <EditableLabel ref={labelRef} value={tab.label} className="tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
+        <DotsMenu target={{ type: 'tab', tabId }} startRename={startRename} />
         {tab.closable && (
           <button className="tab-close" onPointerDown={stopPD} onClick={e => { e.stopPropagation(); close(); }} aria-label="Close">
             <IconClose />
@@ -279,16 +337,18 @@ function GroupTabItem({ tabId, groupId }: { tabId: string; groupId: string }) {
   const { state, actions, dropdown } = useTabBarContext();
   const tab = state.tabs[tabId];
   const { setNodeRef, attributes, listeners, style, activate, close, eject } = useGroupTab(tabId, groupId);
+  const labelRef = useRef<EditableLabelHandle>(null);
+  const startRename = useCallback(() => labelRef.current?.startEditing(), []);
   if (!tab) return null;
   return (
-    <TabContextMenu target={{ type: 'group-tab', tabId, groupId }}>
+    <TabContextMenu target={{ type: 'group-tab', tabId, groupId }} startRename={startRename}>
       <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style}
         className="group-tab-item" onClick={() => { activate(); dropdown.closeImmediate(); }}>
-        <EditableLabel value={tab.label} className="group-tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
+        <EditableLabel ref={labelRef} value={tab.label} className="group-tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
         <button className="group-tab-eject" onPointerDown={stopPD} onClick={e => { e.stopPropagation(); eject(); }} title="Eject from group">
           <IconEject />
         </button>
-        <DotsMenu target={{ type: 'group-tab', tabId, groupId }} />
+        <DotsMenu target={{ type: 'group-tab', tabId, groupId }} startRename={startRename} />
         {tab.closable && (
           <button className="tab-close" style={{ opacity: 1, position: 'static' }}
             onPointerDown={stopPD} onClick={e => { e.stopPropagation(); close(); }} title="Close">
@@ -318,6 +378,8 @@ function GroupDropZone({ groupId, tabIds }: { groupId: string; tabIds: string[] 
 
 function GroupPill({ groupId }: { groupId: string }) {
   const pillRef = useRef<HTMLDivElement>(null);
+  const labelRef = useRef<EditableLabelHandle>(null);
+  const startRename = useCallback(() => labelRef.current?.startEditing(), []);
   const { orientation, actions } = useTabBarContext();
   const {
     setNodeRef, setDropdownRef, dropdownAttributes, attributes, listeners, style,
@@ -327,8 +389,13 @@ function GroupPill({ groupId }: { groupId: string }) {
   const rect = useStickyPosition(pillRef, isOpen);
   const pos = rect
     ? orientation === 'vertical'
-      ? { left: rect.left + rect.width + 3, top: rect.top }
-      : { left: rect.left, top: rect.top + rect.height + 3 }
+      // No gap between pill and dropdown (touching, not offset) — a real gap
+      // is a hover dead-zone: the pointer briefly hovers neither element while
+      // crossing it, the pill's mouseleave schedules a close-dwell, and a
+      // deliberate (not-instant) mouse movement toward the dropdown could lose
+      // the race and close it before the pointer arrives.
+      ? { left: rect.left + rect.width, top: rect.top }
+      : { left: rect.left, top: rect.top + rect.height }
     : null;
 
   const setRefs = useCallback((node: HTMLDivElement | null) => {
@@ -337,7 +404,7 @@ function GroupPill({ groupId }: { groupId: string }) {
   }, [setNodeRef]);
 
   return (
-    <TabContextMenu target={{ type: 'group', groupId }}>
+    <TabContextMenu target={{ type: 'group', groupId }} startRename={startRename}>
       <div style={{ position: 'relative' }}>
         <div ref={setRefs} {...(attributes as any)} {...(listeners as any)}
           style={{ ...style, '--group-color': color } as React.CSSProperties}
@@ -345,9 +412,9 @@ function GroupPill({ groupId }: { groupId: string }) {
           data-combine-target={isCombineTarget ? '' : undefined}
           onClick={e => { e.stopPropagation(); toggle(); }}>
           <span className="group-dot" />
-          <EditableLabel value={label} className="group-label" onCommit={(v) => actions.updateGroup(groupId, { label: v })} />
+          <EditableLabel ref={labelRef} value={label} className="group-label" onCommit={(v) => actions.updateGroup(groupId, { label: v })} />
           <span className="group-count">{tabIds.length}</span>
-          <DotsMenu target={{ type: 'group', groupId }} />
+          <DotsMenu target={{ type: 'group', groupId }} startRename={startRename} />
           <span className="group-chevron"><IconChevron /></span>
         </div>
 

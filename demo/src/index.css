@@ -225,6 +225,12 @@ body { min-height: 100vh; background: var(--c-bg); }
   min-width: 0;
   border-radius: 5px;
   margin-bottom: 0;
+  /* Base .tab/.group-pill sets border-bottom: none for the horizontal
+     "connects into the content area" look — meaningless in a vertical
+     sidebar, and it left the active/open state with a border on three
+     sides only. Give every side a real (if transparent) border here so
+     [data-active]/[data-open]'s border-color applies evenly. */
+  border-bottom: 1px solid transparent;
 }
 
 .tab-strip[data-orientation='vertical'] .tab-new {
@@ -596,6 +602,14 @@ input.tab-label, input.group-label, input.group-tab-label {
 }
 
 .context-sub-arrow { margin-left: auto; color: var(--c-muted); font-size: 9px; }
+
+.context-menu-swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 4px 6px; }
+.context-menu-swatch {
+  width: 16px; height: 16px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; padding: 0; transition: transform 0.08s;
+}
+.context-menu-swatch:hover { transform: scale(1.15); }
+.context-menu-swatch[data-active] { border-color: var(--c-text); }
 
 /* ⋮ trigger button — was previously unstyled (no matching CSS rule existed) */
 .tab-dots {

@@ -1,16 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
-export function EditableLabel({
-  value,
-  onCommit,
-  className,
-  inputClassName,
-}: {
+export interface EditableLabelHandle {
+  startEditing: () => void;
+}
+
+export const EditableLabel = forwardRef<EditableLabelHandle, {
   value: string;
   onCommit: (next: string) => void;
   className?: string;
   inputClassName?: string;
-}) {
+}>(function EditableLabel({ value, onCommit, className, inputClassName }, ref) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -19,6 +18,8 @@ export function EditableLabel({
   // second, stale-closure commit on top of (or instead of) the one Enter/Escape
   // just made — which read as "Enter does nothing, but Escape somehow applies it".
   const settledRef = useRef(false);
+
+  useImperativeHandle(ref, () => ({ startEditing: () => setEditing(true) }), []);
 
   useEffect(() => {
     if (!editing) setDraft(value);
@@ -80,4 +81,4 @@ export function EditableLabel({
       {value}
     </span>
   );
-}
+});

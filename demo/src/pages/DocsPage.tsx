@@ -1,3 +1,5 @@
+import type { MouseEvent } from 'react';
+
 function Code({ children }: { children: string }) {
   return <pre className="docs-code">{children}</pre>;
 }
@@ -72,17 +74,29 @@ const GROUP_FIELDS = [
   { name: 'dissolveOnEmpty', type: 'boolean', description: "Per-group override of the provider's dissolveEmptyGroups." },
 ];
 
+// Plain hash anchors would hand window.location.hash to the app's own
+// page router (App.tsx), which treats anything not starting with "#docs"
+// as "navigate to the examples page" — so a docs nav click bounced you
+// straight off the docs page instead of scrolling. Scroll manually instead
+// and leave the URL hash (and page router) alone.
+function scrollToSection(id: string) {
+  return (e: MouseEvent) => {
+    e.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+}
+
 export default function DocsPage() {
   return (
     <div className="docs-body">
       <nav className="docs-nav">
-        <a href="#overview">Overview</a>
-        <a href="#install">Install</a>
-        <a href="#quick-start">Quick start</a>
-        <a href="#data-model">Data model</a>
-        <a href="#hooks">Hooks</a>
-        <a href="#provider">Provider</a>
-        <a href="#config">Tab / group options</a>
+        <a href="#overview" onClick={scrollToSection('overview')}>Overview</a>
+        <a href="#install" onClick={scrollToSection('install')}>Install</a>
+        <a href="#quick-start" onClick={scrollToSection('quick-start')}>Quick start</a>
+        <a href="#data-model" onClick={scrollToSection('data-model')}>Data model</a>
+        <a href="#hooks" onClick={scrollToSection('hooks')}>Hooks</a>
+        <a href="#provider" onClick={scrollToSection('provider')}>Provider</a>
+        <a href="#config" onClick={scrollToSection('config')}>Tab / group options</a>
       </nav>
 
       <div className="docs-content">

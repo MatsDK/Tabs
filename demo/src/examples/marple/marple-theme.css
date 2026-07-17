@@ -225,8 +225,12 @@ input.mi-tab-label, input.mi-group-tab-label, input.mi-group-label {
 .mi-menu-item[data-destructive] { color: #dc2626; }
 .mi-menu-icon { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; color: var(--mi-zinc-500); flex-shrink: 0; }
 .mi-menu-sep { height: 1px; background: var(--mi-zinc-200); margin: 3px 2px; }
-.mi-menu-swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 4px; }
-.mi-menu-swatch { width: 16px; height: 16px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+.mi-menu-swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 4px 6px; }
+.mi-menu-swatch {
+  width: 16px; height: 16px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; padding: 0; transition: transform 0.08s;
+}
+.mi-menu-swatch:hover { transform: scale(1.15); }
 .mi-menu-swatch[data-active] { border-color: var(--mi-zinc-900); }
 
 .mi-drag-ghost {

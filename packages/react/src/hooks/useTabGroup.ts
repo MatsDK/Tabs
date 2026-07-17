@@ -34,7 +34,7 @@ export interface UseTabGroupReturn {
    */
   setDropdownRef: (node: HTMLElement | null) => void;
   /** Spread onto the same dropdown content node as setDropdownRef — keeps hover-driven open/close from firing while the pointer is over the dropdown's own contents */
-  dropdownAttributes: { onMouseEnter: () => void; onMouseLeave: () => void };
+  dropdownAttributes: { onMouseEnter: () => void; onMouseLeave: (event: React.MouseEvent) => void };
   attributes: Record<string, unknown>;
   listeners: Record<string, unknown> | undefined;
   style: React.CSSProperties;
@@ -155,9 +155,19 @@ export function useTabGroup(groupId: string): UseTabGroupReturn {
     }
   }, [openOn, dropdown, groupId]);
 
-  const handleMouseLeave = useCallback(() => {
+  const handleMouseLeave = useCallback((event: React.MouseEvent) => {
     if (isDragActiveRef.current) return;
     if (pinnedRef.current) return; // click-pinned — only an explicit close() or another group opening moves it
+    // A tab's own ⋮/right-click menu portals its content straight to
+    // document.body — a DOM sibling of this dropdown, not a descendant — so
+    // moving the pointer onto it is a *real* mouseleave on the dropdown div
+    // even though the user never actually left the group's UI. Without this
+    // check, opening that menu starts the close-dwell timer, and picking an
+    // item (almost always >200ms later) closes the group dropdown out from
+    // under the still-open menu, unmounting it before the click can land —
+    // "Close"/"Move to Group" etc. inside a group silently doing nothing.
+    const related = event.relatedTarget;
+    if (related instanceof Element && related.closest('[role="menu"]')) return;
     if (openOn === 'hover' || openOn === 'hover+click') {
       dropdown.setHoverTarget(null);
     }

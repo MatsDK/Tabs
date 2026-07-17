@@ -4,6 +4,14 @@ import DocsPage from './pages/DocsPage.js';
 
 type Page = 'examples' | 'docs';
 
+const Logomark = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <rect x="1" y="6" width="4" height="3" rx="1" fill="currentColor" opacity="0.35" />
+    <rect x="6" y="3" width="4" height="6" rx="1" fill="currentColor" />
+    <rect x="11" y="6" width="4" height="3" rx="1" fill="currentColor" opacity="0.35" />
+  </svg>
+);
+
 function pageFromHash(): Page {
   return window.location.hash.startsWith('#docs') ? 'docs' : 'examples';
 }
@@ -26,7 +34,7 @@ export default function App() {
     <div className="demo-root">
       <header className="demo-header">
         <div className="demo-header-logo">
-          <span>⬡</span> react-tabstack
+          <Logomark /> react-tabstack
         </div>
         <nav className="page-nav" role="tablist" aria-label="Page">
           <button role="tab" aria-selected={page === 'examples'} data-active={page === 'examples' ? '' : undefined} onClick={() => navigate('examples')}>
@@ -36,7 +44,7 @@ export default function App() {
             Docs
           </button>
         </nav>
-        <span className="demo-header-desc">Headless, composable Chrome-style tab bars</span>
+        <span className="demo-header-desc">Headless tab bars for React</span>
       </header>
       <main className="demo-body">
         {page === 'examples' ? <ExamplesPage /> : <DocsPage />}

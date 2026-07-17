@@ -38,11 +38,9 @@ function Section({
   return (
     <section className="showcase-section">
       <header className="showcase-section-header">
-        <span className="showcase-index">{index}</span>
-        <div>
-          <h2>{title}</h2>
-          <p>{description}</p>
-        </div>
+        <span className="showcase-eyebrow">{String(index).padStart(2, '0')} / 05</span>
+        <h2>{title}</h2>
+        <p>{description}</p>
       </header>
       <div className="showcase-section-body">{children}</div>
     </section>

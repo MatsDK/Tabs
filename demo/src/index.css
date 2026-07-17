@@ -12,13 +12,16 @@
   --c-text:     #1f2328;
   --c-muted:    #636c76;
   --c-accent:   #0969da;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, monospace;
 
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.5;
   color: var(--c-text);
   background: var(--c-bg);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss01';
 }
 
 body { min-height: 100vh; background: var(--c-bg); }
@@ -27,29 +30,34 @@ body { min-height: 100vh; background: var(--c-bg); }
 .demo-root { display: flex; flex-direction: column; min-height: 100vh; }
 
 .demo-header {
-  padding: 10px 16px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--c-border);
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: var(--c-surface);
+  gap: 20px;
+  background: var(--c-bg);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
 }
 
 .demo-header-logo {
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  color: var(--c-text);
 }
+.demo-header-logo svg { color: var(--c-accent); }
 
-.page-nav { display: flex; gap: 2px; padding: 2px; background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 6px; }
+.page-nav { display: flex; gap: 2px; padding: 2px; background: var(--c-surface); border: 1px solid var(--c-border-m); border-radius: 7px; }
 .page-nav button {
-  border: none; background: transparent; padding: 4px 12px; border-radius: 4px;
+  border: none; background: transparent; padding: 5px 13px; border-radius: 5px;
   font-size: 12px; font-weight: 500; color: var(--c-muted); cursor: pointer; font-family: inherit;
+  transition: background 0.12s, color 0.12s;
 }
 .page-nav button:hover { color: var(--c-text); }
-.page-nav button[data-active] { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+.page-nav button[data-active] { background: var(--c-bg); color: var(--c-text); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
 
 .demo-header-desc {
   color: var(--c-muted);
@@ -59,28 +67,29 @@ body { min-height: 100vh; background: var(--c-bg); }
 
 .demo-body { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: auto; }
 
-.showcase-body { display: flex; flex-direction: column; padding: 24px; gap: 32px; max-width: 900px; margin: 0 auto; width: 100%; }
+.showcase-body { display: flex; flex-direction: column; padding: 40px 24px 64px; gap: 48px; max-width: 860px; margin: 0 auto; width: 100%; }
 
-.showcase-section { display: flex; flex-direction: column; gap: 12px; }
+.showcase-section { display: flex; flex-direction: column; gap: 14px; }
 
-.showcase-section-header { display: flex; gap: 12px; align-items: flex-start; }
+.showcase-section-header { display: flex; flex-direction: column; gap: 4px; padding-bottom: 2px; }
 
-.showcase-index {
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--c-surface); border: 1px solid var(--c-border);
-  font-size: 11px; font-weight: 600; color: var(--c-muted);
-  margin-top: 1px;
+.showcase-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--c-muted);
 }
 
-.showcase-section-header h2 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
-.showcase-section-header p { font-size: 12px; color: var(--c-muted); max-width: 600px; line-height: 1.5; }
+.showcase-section-header h2 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.showcase-section-header p { font-size: 12.5px; color: var(--c-muted); max-width: 560px; line-height: 1.6; }
 
 .showcase-section-body {
   border: 1px solid var(--c-border);
   border-radius: 8px;
   overflow: hidden;
   background: var(--c-bg);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .showcase-vertical-frame { display: flex; flex-direction: column; height: 360px; }
@@ -514,7 +523,7 @@ input.tab-label, input.group-label, input.group-tab-label {
 .tab-panel-body { color: var(--c-muted); line-height: 1.6; margin-bottom: 12px; }
 
 .tab-panel-code {
-  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11.5px;
   background: var(--c-surface);
   border: 1px solid var(--c-border);
@@ -607,7 +616,7 @@ input.tab-label, input.group-label, input.group-tab-label {
   background: var(--c-bg);
   border: 1px solid var(--c-border);
   border-radius: 6px;
-  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   overflow: hidden;
@@ -622,7 +631,7 @@ input.tab-label, input.group-label, input.group-tab-label {
   font-size: 11px;
   font-weight: 600;
   color: var(--c-muted);
-  font-family: -apple-system, sans-serif;
+  font-family: var(--font-sans);
   gap: 5px;
 }
 
@@ -672,7 +681,7 @@ input.tab-label, input.group-label, input.group-tab-label {
 .docs-section h2 { font-size: 16px; font-weight: 600; margin-bottom: 10px; scroll-margin-top: 24px; }
 .docs-section p { color: var(--c-muted); line-height: 1.65; margin-bottom: 10px; }
 .docs-section p code {
-  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11.5px;
   background: var(--c-surface);
   border: 1px solid var(--c-border-m);
@@ -684,7 +693,7 @@ input.tab-label, input.group-label, input.group-tab-label {
 .docs-subhead { font-size: 12px; font-weight: 600; color: var(--c-muted); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.03em; }
 
 .docs-code {
-  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.6;
   background: var(--c-surface);
@@ -710,7 +719,7 @@ input.tab-label, input.group-label, input.group-tab-label {
 .docs-table td { padding: 8px 10px; border-bottom: 1px solid var(--c-border-m); vertical-align: top; line-height: 1.5; }
 .docs-table tr:last-child td { border-bottom: none; }
 .docs-table code {
-  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--c-accent);
   white-space: nowrap;

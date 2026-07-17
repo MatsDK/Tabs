@@ -1,6 +1,7 @@
 import MinimalExample from '../examples/minimal/MinimalExample.js';
 import BasicExample from '../examples/basic/BasicExample.js';
 import DefaultExample from '../examples/default/DefaultExample.js';
+import InlineGroupsExample from '../examples/inline-groups/InlineGroupsExample.js';
 import MarpleExample from '../examples/marple/MarpleExample.js';
 import type { TabBarState } from '@react-tabstack/react';
 
@@ -38,7 +39,7 @@ function Section({
   return (
     <section className="showcase-section">
       <header className="showcase-section-header">
-        <span className="showcase-eyebrow">{String(index).padStart(2, '0')} / 05</span>
+        <span className="showcase-eyebrow">{String(index).padStart(2, '0')} / 06</span>
         <h2>{title}</h2>
         <p>{description}</p>
       </header>
@@ -74,14 +75,22 @@ export default function ExamplesPage() {
         <DefaultExample orientation="horizontal" />
       </Section>
 
-      <Section index={4} title="Vertical orientation" description="Same hooks, same data model — orientation is a single prop on TabBarProvider.">
+      <Section
+        index={4}
+        title="Inline groups (Chrome-style)"
+        description="A group's tabs expand inline in the strip itself, wrapped in a colored bracket, instead of behind a dropdown — the exact same useTabGroup/useGroupTab hooks as example 3, just rendered differently. Click a group's label to collapse/expand."
+      >
+        <InlineGroupsExample />
+      </Section>
+
+      <Section index={5} title="Vertical orientation" description="Same hooks, same data model — orientation is a single prop on TabBarProvider.">
         <div className="showcase-vertical-frame">
           <DefaultExample orientation="vertical" initialState={VERTICAL_STATE} hint="Drag to sort · hover/click groups · double-click to rename" />
         </div>
       </Section>
 
       <Section
-        index={5}
+        index={6}
         title="Custom visual theme"
         description="A completely separate set of presentational components and CSS, built from the exact same hooks as example 3 — proving the headless core doesn't change to hit a specific visual target."
       >

@@ -93,10 +93,25 @@ export function createTabbedCollisionDetection(ctx: CollisionContext): Collision
         const d = c.data.current as Data;
         return d?.type === 'group-tab' && d.groupId === groupId;
       });
+    // Matched by data.type, not by an assumed id string — a consumer's
+    // "expanded group" container droppable only has to carry
+    // { type: 'group-dropdown', groupId }, regardless of what they name its
+    // id or whether they render it in a portalled dropdown, inline in the
+    // strip, or anywhere else. Same for group-pill below.
+    const groupDropdownOf = (groupId: unknown) =>
+      candidates.find((c) => {
+        const d = c.data.current as Data;
+        return d?.type === 'group-dropdown' && d.groupId === groupId;
+      });
+    const groupPillDropOf = (groupId: unknown) =>
+      candidates.find((c) => {
+        const d = c.data.current as Data;
+        return d?.type === 'group-pill' && d.groupId === groupId;
+      });
 
     // 1. Pointer inside a mounted dropdown
     for (const dd of candidates) {
-      if (!String(dd.id).startsWith('group-dropdown:')) continue;
+      if ((dd.data.current as Data)?.type !== 'group-dropdown') continue;
       const r = dd.rect.current;
       if (!r) continue;
       const inX = p.x >= r.left - hitMargin && p.x <= r.left + r.width + hitMargin;
@@ -126,12 +141,12 @@ export function createTabbedCollisionDetection(ctx: CollisionContext): Collision
         });
         if (pill) {
           const gid = (pill.data.current as Data)?.groupId as string;
-          const dd = candidates.find((c) => c.id === `group-dropdown:${gid}`);
+          const dd = groupDropdownOf(gid);
           if (dd) {
             const nearest = nearestByPointer(itemsOfGroup(gid), p, 'y');
             return [{ id: (nearest ?? dd).id }];
           }
-          const pillDrop = candidates.find((c) => c.id === `group-pill:${gid}`);
+          const pillDrop = groupPillDropOf(gid);
           if (pillDrop) return [{ id: pillDrop.id }];
         }
         // No pill under the pointer here — fall through to the strip-level
@@ -161,7 +176,7 @@ export function createTabbedCollisionDetection(ctx: CollisionContext): Collision
         const frac = size > 0 ? (p[axis.mainAxis] - range.start) / size : 0.5;
         const m = (1 - combineFraction) / 2;
         if (frac >= m && frac <= 1 - m) {
-          const pillDrop = candidates.find((cc) => cc.id === `group-pill:${d.groupId}`);
+          const pillDrop = groupPillDropOf(d.groupId);
           if (pillDrop) return [{ id: pillDrop.id }];
         }
       }

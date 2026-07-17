@@ -36,7 +36,11 @@ export function containerOf(state: TabBarState, tabId: string): string | null {
 export function membershipTargetFor(overId: string, overData: DragData): string | null | undefined {
   if (overData.type === 'group-pill') return overData.groupId as string;
   if (overData.type === 'group-tab') return overData.groupId as string;
-  if (overId.startsWith('group-dropdown:')) return overId.slice('group-dropdown:'.length);
+  // An empty group's own container (nothing to hit-test a nearest group-tab
+  // against yet) — matched by data, not by assuming its id has any
+  // particular shape, so a consumer can name/render this container however
+  // they like as long as it carries { type: 'group-dropdown', groupId }.
+  if (overData.type === 'group-dropdown') return overData.groupId as string;
   if (overData.type === 'tab' || overData.type === 'group' || overId === 'strip') return null;
   return undefined;
 }

@@ -52,7 +52,20 @@
 .mi-inline-group-head:hover .mi-inline-dots, .mi-inline-dots[data-state='open'] { opacity: 1; }
 .mi-inline-dots:hover, .mi-inline-dots[data-state='open'] { background: color-mix(in srgb, var(--mi-gc, var(--mi-blue-500)) 24%, var(--mi-zinc-000)); }
 
-.mi-inline-group-members { display: flex; align-items: center; gap: 3px; }
+/* Runs automatically on mount — see the equivalent comment in
+   inline-groups.css for why this is an animation, not a transition, and why
+   the "to" value is a deliberately oversized cap rather than a measurement. */
+.mi-inline-group-members {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  overflow: hidden;
+  animation: mi-group-expand 0.18s ease-out;
+}
+@keyframes mi-group-expand {
+  from { max-width: 0; }
+  to { max-width: 2000px; }
+}
 
 .mi-inline-tab-grouped { background: color-mix(in srgb, var(--group-color, var(--mi-blue-500)) 6%, var(--mi-zinc-000)); }
 .mi-inline-tab-grouped:hover { background: color-mix(in srgb, var(--group-color, var(--mi-blue-500)) 13%, var(--mi-zinc-000)); }

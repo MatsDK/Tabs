@@ -161,7 +161,25 @@
 .ig-group-head:hover .ig-dots-on-head, .ig-dots-on-head[data-state='open'] { opacity: 1; }
 .ig-dots-on-head:hover { background: color-mix(in srgb, var(--group-color, var(--c-accent)) 26%, var(--c-bg)); }
 
-.ig-group-members { display: flex; align-items: center; gap: 3px; }
+/* A CSS *animation* (not transition) runs automatically the moment this
+   element mounts — no trigger/JS measurement needed, unlike a transition,
+   which would need a state change to animate from. The "to" value is a
+   deliberately oversized cap, not a real measurement: after the animation
+   finishes it becomes this element's actual max-width, but since no
+   realistic group is anywhere near 2000px wide, that's functionally
+   unconstrained — just a trick to make "grow from 0 to natural width"
+   animatable without needing to know the natural width in advance. */
+.ig-group-members {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  overflow: hidden;
+  animation: ig-group-expand 0.18s ease-out;
+}
+@keyframes ig-group-expand {
+  from { max-width: 0; }
+  to { max-width: 2000px; }
+}
 
 .ig-tab-grouped {
   background: color-mix(in srgb, var(--group-color, var(--c-accent)) 5%, var(--c-bg));

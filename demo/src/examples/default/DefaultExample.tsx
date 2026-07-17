@@ -69,6 +69,11 @@ const IconPlus = () => (
     <path d="M6 2v8M2 6h8" />
   </svg>
 );
+const IconLock = () => (
+  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2.5" y="5.5" width="7" height="5" rx="1" /><path d="M4 5.5V3.8a2 2 0 0 1 4 0v1.7" />
+  </svg>
+);
 
 const MENU_ICONS: Record<string, React.ReactNode> = {
   pin: <IconPin />, close: <IconClose />, eject: <IconEject />, folder: <IconFolder />,
@@ -264,7 +269,8 @@ function TabItem({ tabId }: { tabId: string }) {
   return (
     <TabContextMenu target={{ type: 'tab', tabId }}>
       <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style}
-        className="tab" onClick={activate} title={tab.label}>
+        className="tab" onClick={activate} title={tab.draggable === false ? `${tab.label} (not draggable)` : tab.label}>
+        {tab.draggable === false && <span className="tab-lock-icon"><IconLock /></span>}
         <EditableLabel value={tab.label} className="tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
         <DotsMenu target={{ type: 'tab', tabId }} />
         {tab.closable && (
@@ -311,7 +317,7 @@ function GroupDropZone({ groupId, tabIds }: { groupId: string; tabIds: string[] 
   );
   return (
     <div ref={setNodeRef} className="group-tabs-list">
-      <SortableContext items={tabIds} strategy={verticalListSortingStrategy}>
+      <SortableContext id={`group-dropdown:${groupId}`} items={tabIds} strategy={verticalListSortingStrategy}>
         {tabIds.map(tabId => <GroupTabItem key={tabId} tabId={tabId} groupId={groupId} />)}
       </SortableContext>
     </div>
@@ -371,13 +377,13 @@ function GroupPill({ groupId }: { groupId: string }) {
 }
 
 function TabStrip() {
-  const { setNodeRef, attributes, slots, isDraggingOver, sortableIds, sortStrategy, orientation } = useTabStrip();
+  const { setNodeRef, attributes, slots, isDraggingOver, sortableIds, sortStrategy, sortableContextId, orientation } = useTabStrip();
   const { actions } = useTabBarContext();
   const addTab = () => { const id = newTabId(); actions.addTab({ id, label: `Tab ${id.split('-')[1]}`, closable: true }); };
   return (
     <TabContextMenu target={{ type: 'strip' }}>
       <div ref={setNodeRef} {...(attributes as any)} className="tab-strip" data-dragging-over={isDraggingOver ? '' : undefined} data-orientation={orientation}>
-        <SortableContext items={sortableIds} strategy={sortStrategy}>
+        <SortableContext id={sortableContextId} items={sortableIds} strategy={sortStrategy}>
           {slots.map((slot: TabSlot) =>
             slot.type === 'tab'
               ? <TabItem key={slot.tabId} tabId={slot.tabId} />

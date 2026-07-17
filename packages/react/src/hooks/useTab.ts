@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTabBarContext } from '../context.js';
+import { crossContainerAnimateLayoutChanges } from '../animateLayoutChanges.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useTab — make any element a draggable, sortable tab in the strip
@@ -46,6 +47,7 @@ export function useTab(tabId: string): UseTabReturn {
     id: tabId,
     data: { type: 'tab', tabId, pinned: !!tab?.pinned },
     disabled: tab?.draggable === false,
+    animateLayoutChanges: crossContainerAnimateLayoutChanges,
   });
 
   const style: React.CSSProperties = {
@@ -68,6 +70,7 @@ export function useTab(tabId: string): UseTabReturn {
       'data-active': state.activeTabId === tabId ? '' : undefined,
       'data-dragging': isDragging ? '' : undefined,
       'data-pinned': tab?.pinned ? '' : undefined,
+      'data-draggable': tab?.draggable === false ? 'false' : 'true',
     },
     listeners,
     style,

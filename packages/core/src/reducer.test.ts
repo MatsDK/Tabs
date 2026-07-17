@@ -87,6 +87,22 @@ describe('tabBarReducer — PIN_TAB / UNPIN_TAB', () => {
   });
 });
 
+describe('tabBarReducer — pinned/grouped are mutually exclusive', () => {
+  it('ADD_TAB_TO_GROUP clears pinned (regression: a pinned+grouped tab had no way to unpin, since the group-tab menu has no unpin option)', () => {
+    const state = baseState(); // p1 is pinned
+    const next = tabBarReducer(state, { type: 'ADD_TAB_TO_GROUP', tabId: 'p1', groupId: 'g1' });
+    expect(next.tabs.p1.pinned).toBe(false);
+    const groupSlot = next.slots.find((s) => s.type === 'group');
+    expect(groupSlot?.type === 'group' && groupSlot.tabIds).toContain('p1');
+  });
+
+  it('CREATE_GROUP_FROM_TAB clears pinned', () => {
+    const state = baseState();
+    const next = tabBarReducer(state, { type: 'CREATE_GROUP_FROM_TAB', tabId: 'p1', group: { id: 'g2', label: 'New' } });
+    expect(next.tabs.p1.pinned).toBe(false);
+  });
+});
+
 describe('tabBarReducer — pinned-zone clamp (MOVE_TAB)', () => {
   it('a pinned tab cannot be moved past the pinned/unpinned boundary', () => {
     const state = baseState(); // only p1 is pinned, boundary is index 1

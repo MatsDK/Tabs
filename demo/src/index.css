@@ -248,6 +248,13 @@ body { min-height: 100vh; background: var(--c-bg); }
   flex-shrink: 0;
 }
 
+.tab[data-draggable='false'] {
+  cursor: default;
+  background: var(--c-surface);
+}
+.tab[data-draggable='false']:hover { background: var(--c-surface); }
+.tab-lock-icon { color: var(--c-muted); flex-shrink: 0; display: flex; }
+
 .tab-label {
   flex: 1;
   overflow: hidden;

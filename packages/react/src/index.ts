@@ -38,6 +38,8 @@ export type { Orientation, AxisMetrics } from './axis.js';
 export { createTabbedCollisionDetection } from './collision/tabbedCollisionDetection.js';
 export type { CollisionContext } from './collision/tabbedCollisionDetection.js';
 
+export { crossContainerAnimateLayoutChanges } from './animateLayoutChanges.js';
+
 // Re-export core types for convenience — users shouldn't need to install core separately
 export type {
   Tab,

@@ -14,14 +14,34 @@ export function EditableLabel({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Enter/Escape resolve the edit immediately and explicitly. Without this,
+  // the blur that follows setEditing(false) unmounting the input can fire a
+  // second, stale-closure commit on top of (or instead of) the one Enter/Escape
+  // just made — which read as "Enter does nothing, but Escape somehow applies it".
+  const settledRef = useRef(false);
 
   useEffect(() => {
     if (!editing) setDraft(value);
   }, [value, editing]);
 
   useEffect(() => {
-    if (editing) inputRef.current?.select();
+    if (editing) {
+      settledRef.current = false;
+      inputRef.current?.select();
+    }
   }, [editing]);
+
+  const commit = (raw: string) => {
+    settledRef.current = true;
+    setEditing(false);
+    const trimmed = raw.trim();
+    if (trimmed && trimmed !== value) onCommit(trimmed);
+  };
+
+  const cancel = () => {
+    settledRef.current = true;
+    setEditing(false);
+  };
 
   if (editing) {
     return (
@@ -32,16 +52,16 @@ export function EditableLabel({
         onChange={(e) => setDraft(e.target.value)}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
-        onBlur={() => {
-          setEditing(false);
-          const trimmed = draft.trim();
-          if (trimmed && trimmed !== value) onCommit(trimmed);
+        onBlur={(e) => {
+          if (!settledRef.current) commit(e.target.value);
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-          if (e.key === 'Escape') {
-            setDraft(value);
-            setEditing(false);
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commit(e.currentTarget.value);
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancel();
           }
         }}
       />

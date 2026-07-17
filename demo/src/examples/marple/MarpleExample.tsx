@@ -222,7 +222,7 @@ function MiGroupDropdownContent({ groupId, tabIds }: { groupId: string; tabIds: 
   if (tabIds.length === 0) return <div ref={setNodeRef} className="mi-empty-drop" data-over={isOver ? '' : undefined}>Drop tabs here</div>;
   return (
     <div ref={setNodeRef}>
-      <SortableContext items={tabIds} strategy={verticalListSortingStrategy}>
+      <SortableContext id={`group-dropdown:${groupId}`} items={tabIds} strategy={verticalListSortingStrategy}>
         {tabIds.map(id => <MiGroupTab key={id} tabId={id} groupId={groupId} />)}
       </SortableContext>
     </div>
@@ -270,12 +270,12 @@ function MiGroupPill({ groupId }: { groupId: string }) {
 }
 
 function MiStrip() {
-  const { setNodeRef, attributes, slots, sortableIds, sortStrategy } = useTabStrip();
+  const { setNodeRef, attributes, slots, sortableIds, sortStrategy, sortableContextId } = useTabStrip();
   const { actions } = useTabBarContext();
   return (
     <div className="mi-strip-wrap">
       <div ref={setNodeRef} {...(attributes as any)} className="mi-strip">
-        <SortableContext items={sortableIds} strategy={sortStrategy}>
+        <SortableContext id={sortableContextId} items={sortableIds} strategy={sortStrategy}>
           {slots.map((slot: TabSlot) => slot.type === 'tab' ? <MiTab key={slot.tabId} tabId={slot.tabId} /> : <MiGroupPill key={slot.groupId} groupId={slot.groupId} />)}
         </SortableContext>
       </div>
@@ -309,7 +309,7 @@ export default function MarpleExample() {
         state={state}
         onStateChange={setState}
         orientation="horizontal"
-        groupOpenOn="click"
+        groupOpenOn="hover+click"
         dissolveEmptyGroups={false}
         renderDragOverlay={(id, data) => {
           const isGroup = data.type === 'group';

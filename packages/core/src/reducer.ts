@@ -336,7 +336,16 @@ function applyAction<TTabMeta, TGroupMeta>(
         return { ...slot, tabIds: newTabIds };
       });
 
-      return { ...state, slots: newSlots };
+      // Pinned and grouped are mutually exclusive — drag-based entry is
+      // already blocked by collision detection, but this is also reachable
+      // via a plain action call (e.g. a "Move to Group" context menu item),
+      // which has no such guard. A pinned+grouped tab would be unreachable
+      // afterward: the group-tab menu has no unpin option.
+      const newTabs = state.tabs[tabId].pinned
+        ? { ...state.tabs, [tabId]: { ...state.tabs[tabId], pinned: false } }
+        : state.tabs;
+
+      return { ...state, tabs: newTabs, slots: newSlots };
     }
 
     case 'REMOVE_TAB_FROM_GROUP': {
@@ -411,7 +420,12 @@ function applyAction<TTabMeta, TGroupMeta>(
       const newSlots = insertSlotAt(slotsWithoutTab, newSlot, insertAt);
       const newGroups = { ...state.groups, [group.id]: group as TabGroup<TGroupMeta> };
 
-      return { ...state, groups: newGroups, slots: newSlots };
+      // See ADD_TAB_TO_GROUP: pinned and grouped are mutually exclusive.
+      const newTabs = state.tabs[tabId].pinned
+        ? { ...state.tabs, [tabId]: { ...state.tabs[tabId], pinned: false } }
+        : state.tabs;
+
+      return { ...state, tabs: newTabs, groups: newGroups, slots: newSlots };
     }
 
     // ── DnD Resolve ───────────────────────────────────────────────────────────

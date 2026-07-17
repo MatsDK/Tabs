@@ -1,4 +1,10 @@
-.mi-root {
+/* Defined on :root, not .mi-root: the dropdown and menu are portalled to
+   document.body, a *sibling* of .mi-root in the DOM, not a descendant.
+   Custom properties only inherit through the DOM tree, so anything scoped to
+   .mi-root is invisible to portalled content — background: var(--mi-zinc-050)
+   there resolves to nothing, and an unset `background` falls back to its
+   initial value, transparent. That's the "see-through menus" bug. */
+:root {
   --mi-zinc-000: #ffffff;
   --mi-zinc-050: #fafafa;
   --mi-zinc-100: #f4f4f5;
@@ -13,7 +19,9 @@
   --mi-blue-500: #3b82f6;
   --mi-blue-600: #2563eb;
   --mi-radius: 6px;
+}
 
+.mi-root {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   font-size: 13px;
   color: var(--mi-zinc-900);

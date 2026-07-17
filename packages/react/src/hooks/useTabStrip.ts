@@ -24,6 +24,13 @@ export interface UseTabStripReturn {
   orientation: Orientation;
   /** Pass straight through to <SortableContext strategy={...}> — matches orientation */
   sortStrategy: SortableContextProps['strategy'];
+  /**
+   * Pass straight through to <SortableContext id={...}>. A stable, unique id
+   * per container is required for dnd-kit to tell containers apart at all —
+   * without it, cross-container drags (into/out of a group) can't be told
+   * apart from same-container reorders, and layout-change animations glitch.
+   */
+  sortableContextId: string;
 }
 
 export function useTabStrip(): UseTabStripReturn {
@@ -52,5 +59,6 @@ export function useTabStrip(): UseTabStripReturn {
     sortableIds,
     orientation,
     sortStrategy: getAxisMetrics(orientation).sortStrategy,
+    sortableContextId: 'strip',
   };
 }

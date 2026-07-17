@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTabBarContext } from '../context.js';
+import { crossContainerAnimateLayoutChanges } from '../animateLayoutChanges.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useGroupTab — tab inside an open group dropdown
@@ -42,6 +43,7 @@ export function useGroupTab(tabId: string, groupId: string): UseGroupTabReturn {
     id: tabId,
     data: { type: 'group-tab', tabId, groupId, pinned: !!tab?.pinned },
     disabled: tab?.draggable === false,
+    animateLayoutChanges: crossContainerAnimateLayoutChanges,
   });
 
   const style: React.CSSProperties = {

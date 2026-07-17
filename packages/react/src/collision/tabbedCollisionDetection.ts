@@ -10,9 +10,12 @@ import type { Orientation } from '../axis.js';
 //      resolves to the nearest group-tab by pointer position, so precise
 //      in-dropdown placement works.
 //   2. Beneath the strip — a pill whose main-axis range contains the pointer is
-//      targeted (opens it / combines); if its dropdown is already open, its
-//      items are; with a dropdown open but no pill under the pointer, the
-//      dropdown stays sticky so small excursions don't cancel the interaction.
+//      targeted: opens it, or if its dropdown is already open, resolves to its
+//      items directly (so leaving the dropdown's own rect vertically while
+//      still under the same pill doesn't cancel the interaction). No pill
+//      under the pointer falls through to the layers below, deliberately —
+//      see the comment further down on why "stick to any nearby dropdown"
+//      was removed.
 //   3. In-strip pill combine — pointer physically inside a pill's middle
 //      (combineFraction), with a forgiveness margin — targets the pill.
 //   4. Fallback — nearest strip-level sortable BY POINTER POSITION, not
@@ -130,11 +133,13 @@ export function createTabbedCollisionDetection(ctx: CollisionContext): Collision
           }
           const pillDrop = candidates.find((c) => c.id === `group-pill:${gid}`);
           if (pillDrop) return [{ id: pillDrop.id }];
-        } else {
-          const anyDropdownItems = candidates.filter((c) => (c.data.current as Data)?.type === 'group-tab');
-          const nearest = nearestByPointer(anyDropdownItems, p, 'xy');
-          if (nearest) return [{ id: nearest.id }];
         }
+        // No pill under the pointer here — fall through to the strip-level
+        // layers below. (Deliberately not "stick to whatever dropdown items
+        // happen to still be mounted nearby": that search wasn't scoped to
+        // any particular group, so it could snap a drag back into a group
+        // you'd already left while trying to reach a *different* one —
+        // exactly what makes moving between two groups feel like flypaper.)
       }
     }
 

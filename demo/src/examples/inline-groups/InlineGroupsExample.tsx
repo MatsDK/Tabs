@@ -378,14 +378,22 @@ function InlineToolbar() {
 // Top-level items here sit only 4px apart (see .ig-strip's gap), much
 // tighter than the default 8px collision hit-margin was tuned for — two
 // adjacent pills' forgiveness zones would overlap by ~12px, a wide band
-// where hovering could resolve to either one. Combined with the fact that
-// each resolution actually changes the drag preview (which tab is a member
-// of which group), an unstable resolution in that overlap reads as the UI
-// visibly jumping between two states while barely moving the pointer.
-// Tighter margin for tightly-packed items; unrelated to the dropdown
-// examples' spacing, so scoped to this provider only.
+// where hovering could resolve to either one, and since each resolution
+// actually changes the drag preview (which tab is a member of which
+// group), an unstable resolution there reads as the UI visibly jumping
+// between two states while barely moving the pointer. A collapsed group's
+// pill is *also* much smaller than a typical dropdown target (~90-100px),
+// so the default combineFraction (0.8 — the outer 10% on each side counts
+// as "sort next to", not "combine into") reserves a ~10px edge band on a
+// target that small. Approaching from one side and releasing as soon as
+// you're "over" it — the natural way to drag — lands almost exactly in
+// that edge band, which reads as "dropping into the group doesn't work."
+// Trading a little precision for reliability here: a bigger combine zone
+// (0.92) shrinks that edge band to ~4px, and a moderate (not minimal)
+// hit-margin (5px) keeps enough forgiveness to actually land on a small
+// collapsed target while still narrowing the two-groups-overlap band above.
 const collisionDetection = (ctx: Parameters<typeof createTabbedCollisionDetection>[0]) =>
-  createTabbedCollisionDetection({ ...ctx, dropdownHitMargin: 3 });
+  createTabbedCollisionDetection({ ...ctx, dropdownHitMargin: 5, combineFraction: 0.92 });
 
 export default function InlineGroupsExample() {
   const [state, setState] = useState<TabBarState>(INITIAL_STATE);

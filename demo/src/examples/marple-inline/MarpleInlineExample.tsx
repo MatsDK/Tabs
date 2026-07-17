@@ -323,13 +323,17 @@ function MiInlinePanels() {
   return <>{Object.keys(state.tabs).map(id => <MiInlinePanel key={id} tabId={id} />)}</>;
 }
 
-// See the equivalent comment in InlineGroupsExample.tsx — top-level items
-// here sit only 6px apart (.mi-strip's gap), tighter than the default 8px
-// collision hit-margin was tuned for, which could resolve as the UI
-// visibly jumping between two groups while dragging in the narrow gap
-// between them.
+// See the equivalent comment in InlineGroupsExample.tsx: a moderate (not
+// minimal) hit-margin balances two competing failure modes — too large and
+// adjacent groups' forgiveness zones overlap (the UI jumping between two
+// while dragging in the gap between them); too small and a collapsed
+// group's compact pill becomes hard to actually land a drop on. A wider
+// combine zone (0.92) also shrinks the "sort next to, not into" edge band
+// on that same compact pill, which is otherwise wide enough on a small
+// target that a natural drop right as you reach it can miss "combine"
+// entirely.
 const collisionDetection = (ctx: Parameters<typeof createTabbedCollisionDetection>[0]) =>
-  createTabbedCollisionDetection({ ...ctx, dropdownHitMargin: 3 });
+  createTabbedCollisionDetection({ ...ctx, dropdownHitMargin: 5, combineFraction: 0.92 });
 
 export default function MarpleInlineExample() {
   const [state, setState] = useState<TabBarState>(INITIAL_STATE);

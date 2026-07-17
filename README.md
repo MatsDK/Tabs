@@ -178,8 +178,11 @@ const {
   state={state}                  // required — TabBarState
   onStateChange={setState}       // required — (state: TabBarState) => void
 
-  groupHoverDelay={600}          // ms to hover before group opens during drag
-  groupOpenOn="hover+click"      // 'hover' | 'click' | 'hover+click'
+  orientation="horizontal"       // 'horizontal' | 'vertical'
+  dwell={{ open: 60, close: 200 }}  // ms before a group dropdown opens/closes on hover
+  groupOpenOn="hover+click"      // 'hover' | 'click' | 'hover+click' — overridable per-group
+  dissolveEmptyGroups={false}    // default for a group's own dissolveOnEmpty
+  autoScroll={true}              // auto-scroll the strip when a drag reaches its edge
 
   onGroupEmpty={(groupId, actions) => { /* group has 0 tabs */ }}
   onDragEscape={(tabId, actions) => { /* tab dragged outside bar */ }}
@@ -287,12 +290,14 @@ react-tabstack/
 - [x] Context menus (Radix UI)
 - [x] Pinned tabs
 - [x] Serializable state
-- [ ] Vertical orientation
-- [ ] Overflow `<TabOverflowMenu>`
+- [x] Vertical orientation
+- [x] Scroll overflow (buttons + Chrome-style shrink-to-fit before scrolling kicks in)
+- [x] Interactive demo site (Examples + Docs pages)
+- [ ] `<TabOverflowMenu>` (dropdown of tabs hidden past the scroll edge)
 - [ ] `@react-tabstack/styles` pre-built theme
 - [ ] `useTabKeyboardShortcuts` (Ctrl+T, Ctrl+W, Ctrl+Tab)
 - [ ] Multi-bar drag (between two `<TabBarProvider>` instances)
-- [ ] Storybook stories + docs site
+- [ ] Storybook stories
 
 ---
 

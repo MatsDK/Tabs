@@ -219,6 +219,12 @@ body { min-height: 100vh; background: var(--c-bg); }
 
 .tab-strip[data-orientation='vertical'] .tab,
 .tab-strip[data-orientation='vertical'] .group-pill {
+  /* Base .tab/.group-pill's flex: 1 1 0 grows/shrinks tabs along the
+     strip's main axis to fit the available space — correct horizontally
+     (Chrome-style width sharing), but the vertical strip's main axis is
+     height, and stretching each tab to fill leftover sidebar height would
+     be nonsensical. Fixed natural height; width comes from align-self. */
+  flex: 0 0 auto;
   align-self: stretch;
   width: auto;
   max-width: none;
@@ -239,6 +245,11 @@ body { min-height: 100vh; background: var(--c-bg); }
 }
 
 /* ─── Tab ────────────────────────────────────────────────────────────────── */
+/* Chrome-style: tabs share the strip's width equally (flex: 1 1 0, not a
+   fixed size) and shrink together as more are added, down to min-width.
+   Only once even min-width can't be honored for everyone does the strip's
+   own overflow-x: auto (see .tab-strip) take over and start scrolling —
+   the two behaviors are complementary, not alternatives. */
 .tab {
   position: relative;
   display: flex;
@@ -246,7 +257,8 @@ body { min-height: 100vh; background: var(--c-bg); }
   gap: 5px;
   padding: 0 10px;
   height: 32px;
-  min-width: 80px;
+  flex: 1 1 0;
+  min-width: 72px;
   max-width: 180px;
   background: transparent;
   color: var(--c-muted);
@@ -259,11 +271,14 @@ body { min-height: 100vh; background: var(--c-bg); }
   font-size: 12.5px;
   font-weight: 400;
   margin-bottom: -1px;
-  flex-shrink: 0;
-  transition: background 0.1s, color 0.1s;
+  transition: width 0.15s ease, background 0.1s, color 0.1s;
   align-self: flex-end;
   font-family: inherit;
 }
+
+/* The "+" new-tab button shares .tab's box model for visual consistency but
+   must never join the shrink/grow distribution — it stays a fixed size. */
+.tab-new { flex: 0 0 auto; min-width: 0; }
 
 .tab:hover {
   background: #eff1f3;
@@ -345,6 +360,9 @@ input.tab-label, input.group-label, input.group-tab-label {
   gap: 5px;
   padding: 0 9px;
   height: 32px;
+  flex: 1 1 0;
+  min-width: 90px;
+  max-width: 160px;
   background: transparent;
   color: var(--c-muted);
   border: 1px solid transparent;
@@ -356,9 +374,8 @@ input.tab-label, input.group-label, input.group-tab-label {
   font-weight: 400;
   margin-bottom: -1px;
   align-self: flex-end;
-  flex-shrink: 0;
   white-space: nowrap;
-  transition: background 0.1s, color 0.1s;
+  transition: width 0.15s ease, background 0.1s, color 0.1s;
   font-family: inherit;
 }
 

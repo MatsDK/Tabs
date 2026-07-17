@@ -3,7 +3,6 @@ import BasicExample from '../examples/basic/BasicExample.js';
 import DefaultExample from '../examples/default/DefaultExample.js';
 import InlineGroupsExample from '../examples/inline-groups/InlineGroupsExample.js';
 import MarpleExample from '../examples/marple/MarpleExample.js';
-import MarpleInlineExample from '../examples/marple-inline/MarpleInlineExample.js';
 import type { TabBarState } from '@react-tabstack/react';
 
 const VERTICAL_STATE: TabBarState = {
@@ -40,7 +39,7 @@ function Section({
   return (
     <section className="showcase-section">
       <header className="showcase-section-header">
-        <span className="showcase-eyebrow">{String(index).padStart(2, '0')} / 07</span>
+        <span className="showcase-eyebrow">{String(index).padStart(2, '0')} / 06</span>
         <h2>{title}</h2>
         <p>{description}</p>
       </header>
@@ -97,16 +96,6 @@ export default function ExamplesPage() {
       >
         <div className="showcase-marple-frame">
           <MarpleExample />
-        </div>
-      </Section>
-
-      <Section
-        index={7}
-        title="Real app styling, inline groups"
-        description="Colors, radius, spacing and font pulled directly from marple-insight's own tokens (not approximated) — the same visual theme as example 6, but with example 4's inline group expansion instead of a dropdown. A testing ground for how the two combine."
-      >
-        <div className="showcase-marple-frame">
-          <MarpleInlineExample />
         </div>
       </Section>
     </div>

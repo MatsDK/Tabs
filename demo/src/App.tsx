@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import ExamplesPage from './pages/ExamplesPage.js';
 import DocsPage from './pages/DocsPage.js';
+import TestingPage from './pages/TestingPage.js';
 
-type Page = 'examples' | 'docs';
+type Page = 'examples' | 'docs' | 'testing';
 
 const Logomark = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -13,7 +14,10 @@ const Logomark = () => (
 );
 
 function pageFromHash(): Page {
-  return window.location.hash.startsWith('#docs') ? 'docs' : 'examples';
+  const hash = window.location.hash;
+  if (hash.startsWith('#docs')) return 'docs';
+  if (hash.startsWith('#examples')) return 'examples';
+  return 'testing';
 }
 
 export default function App() {
@@ -26,7 +30,7 @@ export default function App() {
   }, []);
 
   const navigate = (next: Page) => {
-    window.location.hash = next === 'docs' ? 'docs' : '';
+    window.location.hash = next === 'testing' ? '' : next;
     setPage(next);
   };
 
@@ -37,6 +41,9 @@ export default function App() {
           <Logomark /> react-tabstack
         </div>
         <nav className="page-nav" role="tablist" aria-label="Page">
+          <button role="tab" aria-selected={page === 'testing'} data-active={page === 'testing' ? '' : undefined} onClick={() => navigate('testing')}>
+            Testing
+          </button>
           <button role="tab" aria-selected={page === 'examples'} data-active={page === 'examples' ? '' : undefined} onClick={() => navigate('examples')}>
             Examples
           </button>
@@ -47,7 +54,7 @@ export default function App() {
         <span className="demo-header-desc">Headless tab bars for React</span>
       </header>
       <main className="demo-body">
-        {page === 'examples' ? <ExamplesPage /> : <DocsPage />}
+        {page === 'examples' ? <ExamplesPage /> : page === 'docs' ? <DocsPage /> : <TestingPage />}
       </main>
     </div>
   );

@@ -117,7 +117,13 @@ export function createTabbedCollisionDetection(ctx: CollisionContext): Collision
       const inX = p.x >= r.left - hitMargin && p.x <= r.left + r.width + hitMargin;
       const inY = p.y >= r.top - hitMargin && p.y <= r.top + r.height + hitMargin;
       if (!inX || !inY) continue;
-      const nearest = nearestByPointer(itemsOfGroup((dd.data.current as Data)?.groupId), p, 'y');
+      // 'xy', not 'y': a vertical dropdown list's items barely vary in x, so
+      // this reduces to y-distance there anyway — but a consumer can lay a
+      // group's expanded content out horizontally too (inline Chrome-style
+      // groups), where items barely vary in y instead. Hardcoding 'y' made
+      // that case pick whichever item happened to have the closest y-center,
+      // which is nearly arbitrary when everything's in the same row.
+      const nearest = nearestByPointer(itemsOfGroup((dd.data.current as Data)?.groupId), p, 'xy');
       return [{ id: (nearest ?? dd).id }];
     }
 
@@ -143,7 +149,7 @@ export function createTabbedCollisionDetection(ctx: CollisionContext): Collision
           const gid = (pill.data.current as Data)?.groupId as string;
           const dd = groupDropdownOf(gid);
           if (dd) {
-            const nearest = nearestByPointer(itemsOfGroup(gid), p, 'y');
+            const nearest = nearestByPointer(itemsOfGroup(gid), p, 'xy');
             return [{ id: (nearest ?? dd).id }];
           }
           const pillDrop = groupPillDropOf(gid);

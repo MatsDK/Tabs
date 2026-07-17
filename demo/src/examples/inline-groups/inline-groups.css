@@ -2,7 +2,8 @@
 /* A different presentation of the same useTabGroup/useGroupTab hooks the
    dropdown-style "Tab groups" example uses — see the comment at the top of
    InlineGroupsExample.tsx. Reuses the shared --c- and --font- custom
-   properties from index.css (same page, same :root scope). */
+   properties, and the .context-menu-* classes, from index.css (same page,
+   same :root scope) — only tab/group presentation gets its own CSS here. */
 
 .ig-toolbar {
   display: flex;
@@ -34,9 +35,9 @@
   align-items: flex-end;
   background: var(--c-surface);
   border-bottom: 1px solid var(--c-border);
-  padding: 4px 4px 0;
-  gap: 3px;
-  min-height: 40px;
+  padding: 6px 4px 0;
+  gap: 4px;
+  min-height: 42px;
   min-width: 0;
   flex: 1;
   overflow-x: auto;
@@ -54,6 +55,14 @@
 .ig-scroll-btn[data-side='back'] svg { transform: rotate(180deg); }
 
 /* ─── Plain (ungrouped) tab ──────────────────────────────────────────────── */
+/* Deliberately NOT flex: 1 1 0 (share/shrink width with siblings) like the
+   "Tab groups" example's tabs — here a group's own width depends on how many
+   members it has, which changes the moment it's expanded/collapsed or a tab
+   drags in/out. If every tab were also fighting for a shared width budget,
+   that alone would resize every *other* tab any time a group's member count
+   changed — messy, and not what real Chrome does either (expanding a group
+   doesn't visibly resize unrelated tabs). Fixed width + horizontal scroll
+   instead, same as the "Sortable strip" example. */
 .ig-tab {
   position: relative;
   display: flex;
@@ -61,41 +70,45 @@
   gap: 5px;
   padding: 0 10px;
   height: 30px;
-  flex: 1 1 0;
-  min-width: 72px;
-  max-width: 180px;
+  flex: 0 0 auto;
+  min-width: 90px;
+  max-width: 168px;
   background: var(--c-bg);
   color: var(--c-text);
   border: 1px solid var(--c-border);
-  border-bottom: none;
-  border-radius: 5px 5px 0 0;
+  border-radius: 6px;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
   font-size: 12.5px;
-  align-self: flex-end;
+  align-self: center;
   font-family: inherit;
-  transition: width 0.15s ease, background 0.1s;
+  transition: background 0.1s, border-color 0.1s;
 }
 .ig-tab:hover { background: var(--c-surface); }
-.ig-tab[data-active] { border-color: var(--c-accent); z-index: 1; }
+.ig-tab[data-active] { border-color: var(--c-accent); }
+.ig-tab[data-dragging] { opacity: 0.4; }
 .ig-tab-label { flex: 1; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
-.ig-close {
+.ig-close, .ig-eject, .ig-dots {
   display: flex; align-items: center; justify-content: center;
-  width: 15px; height: 15px; border-radius: 3px; flex-shrink: 0;
+  width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0;
   border: none; background: transparent; color: var(--c-muted);
-  cursor: pointer; padding: 0; opacity: 0; transition: opacity 0.1s, background 0.1s;
+  cursor: pointer; padding: 0; opacity: 0; transition: opacity 0.1s, background 0.1s, color 0.1s;
 }
-.ig-tab:hover .ig-close, .ig-tab[data-active] .ig-close { opacity: 1; }
+.ig-tab:hover .ig-close, .ig-tab[data-active] .ig-close,
+.ig-tab:hover .ig-eject, .ig-tab[data-active] .ig-eject,
+.ig-tab:hover .ig-dots, .ig-tab[data-active] .ig-dots,
+.ig-dots[data-state='open'] { opacity: 1; }
 .ig-close:hover { background: var(--c-border-m); color: #c0392b; }
+.ig-eject:hover, .ig-dots:hover, .ig-dots[data-state='open'] { background: var(--c-border-m); color: var(--c-text); }
 
 .ig-new-tab {
-  align-self: flex-end;
   flex: 0 0 auto;
+  align-self: center;
   width: 26px; height: 30px;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   color: var(--c-muted);
   font-size: 15px;
@@ -104,19 +117,22 @@
 }
 .ig-new-tab:hover { background: var(--c-border-m); color: var(--c-text); }
 
-/* ─── Group — colored bracket wrapping its head + inline members ─────────── */
+/* ─── Group — a colored underline spans its label + inline members, the way
+   Chrome draws a group bracket, instead of a padded background box. ───────── */
 .ig-group {
   display: flex;
-  align-items: stretch;
-  gap: 2px;
-  align-self: flex-end;
-  padding: 2px;
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--group-color, var(--c-accent)) 12%, transparent);
-  transition: background 0.15s;
+  align-items: center;
+  gap: 3px;
+  align-self: center;
+  padding-bottom: 5px;
+  border-bottom: 2.5px solid var(--group-color, var(--c-accent));
+  border-radius: 1px;
+  transition: border-color 0.15s;
 }
-.ig-group[data-over]:not([data-collapsed]) { background: color-mix(in srgb, var(--group-color, var(--c-accent)) 22%, transparent); }
-.ig-group[data-combine-target] .ig-group-head { box-shadow: 0 0 0 2px var(--c-bg), 0 0 0 3.5px var(--group-color, var(--c-accent)); }
+.ig-group[data-over]:not([data-collapsed]) { border-bottom-color: color-mix(in srgb, var(--group-color, var(--c-accent)) 70%, var(--c-text)); }
+.ig-group[data-combine-target] .ig-group-head {
+  box-shadow: 0 0 0 2px var(--c-surface), 0 0 0 3.5px var(--group-color, var(--c-accent));
+}
 
 .ig-group-head {
   display: flex;
@@ -125,34 +141,38 @@
   padding: 0 9px;
   height: 26px;
   border-radius: 5px;
-  background: var(--group-color, var(--c-accent));
-  color: #fff;
+  background: color-mix(in srgb, var(--group-color, var(--c-accent)) 14%, var(--c-bg));
+  color: var(--c-text);
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
-  align-self: center;
 }
+.ig-group-head:hover { background: color-mix(in srgb, var(--group-color, var(--c-accent)) 22%, var(--c-bg)); }
 .ig-group-head[data-dragging] { opacity: 0.4; }
-.ig-group-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; opacity: 0.85; flex-shrink: 0; }
+.ig-group-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--group-color, var(--c-accent)); flex-shrink: 0; }
 .ig-group-label { max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
-.ig-group-count { font-size: 10.5px; opacity: 0.85; }
-.ig-group-chevron { display: flex; color: #fff; opacity: 0.85; transition: transform 0.12s; }
+.ig-group-count { font-size: 10.5px; color: var(--c-muted); }
+.ig-group-chevron { display: flex; color: var(--c-muted); transition: transform 0.12s; }
 .ig-group-chevron[data-collapsed] { transform: rotate(-90deg); }
 
-.ig-group-members { display: flex; align-items: flex-end; gap: 2px; }
+.ig-dots-on-head { opacity: 0; }
+.ig-group-head:hover .ig-dots-on-head, .ig-dots-on-head[data-state='open'] { opacity: 1; }
+.ig-dots-on-head:hover { background: color-mix(in srgb, var(--group-color, var(--c-accent)) 26%, var(--c-bg)); }
+
+.ig-group-members { display: flex; align-items: center; gap: 3px; }
 
 .ig-tab-grouped {
-  background: var(--c-bg);
-  border-color: transparent;
+  background: color-mix(in srgb, var(--group-color, var(--c-accent)) 5%, var(--c-bg));
 }
+.ig-tab-grouped:hover { background: color-mix(in srgb, var(--group-color, var(--c-accent)) 11%, var(--c-bg)); }
 .ig-tab-grouped[data-active] { border-color: var(--group-color, var(--c-accent)); }
 
 .ig-empty-drop {
   display: flex; align-items: center;
   height: 26px; padding: 0 10px;
-  border: 1.5px dashed color-mix(in srgb, var(--group-color, var(--c-accent)) 40%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--group-color, var(--c-accent)) 45%, transparent);
   border-radius: 5px;
   color: var(--c-muted);
   font-size: 11.5px;

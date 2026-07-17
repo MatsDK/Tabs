@@ -6,10 +6,10 @@ import {
 } from '@react-tabstack/react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
-import * as ContextMenu from '@radix-ui/react-context-menu';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import type { TabSlot, TabBarState, ContextMenuTarget, MenuItem, TabBarActions, Orientation } from '@react-tabstack/react';
 import { EditableLabel, type EditableLabelHandle } from '../shared/EditableLabel.js';
+import { TabContextMenu, DotsMenu, type MenuCtx } from '../shared/contextMenu.js';
+import { useFocusGroup } from '../shared/useFocusGroup.js';
 
 const stopPD = (e: React.PointerEvent) => e.stopPropagation();
 
@@ -113,15 +113,6 @@ let _tc = 10, _gc = 10;
 const newTabId = () => `tab-${++_tc}`;
 const newGroupId = () => `group-${++_gc}`;
 
-interface MenuCtx {
-  /** Opens the inline-editable input on whichever tab/group this menu belongs to. */
-  startRename: () => void;
-  /** Selects the moved tab and opens its destination group's dropdown, so a
-   *  "Move to Group"/"Move to New Group" click has an immediate, visible result
-   *  instead of silently relocating a tab into a dropdown that stays closed. */
-  focusGroup: (groupId: string) => void;
-}
-
 function buildMenuItems(target: ContextMenuTarget, actions: TabBarActions, state: TabBarState, ctx: MenuCtx): MenuItem[] {
   const groups = Object.values(state.groups);
   const { startRename, focusGroup } = ctx;
@@ -188,125 +179,11 @@ function buildMenuItems(target: ContextMenuTarget, actions: TabBarActions, state
   return [];
 }
 
-function ItemIcon({ item }: { item: MenuItem }) {
-  if (item.type === 'separator' || item.type === 'label' || !('icon' in item) || !item.icon) return null;
-  return <span className="context-menu-item-icon">{MENU_ICONS[item.icon]}</span>;
-}
-
-function SwatchGrid({ item, actions }: { item: MenuItem; actions: TabBarActions }) {
-  if (!('submenu' in item) || !item.submenu) return null;
-  return (
-    <div className="context-menu-swatches">
-      {item.submenu.map((s, i) => (
-        <button
-          key={i} type="button" className="context-menu-swatch"
-          data-active={'icon' in s && s.icon === 'active' ? '' : undefined}
-          style={{ background: 'label' in s ? s.label : undefined }}
-          onClick={() => 'action' in s && s.action?.(actions)}
-          aria-label={'label' in s ? s.label : 'Color'}
-        />
-      ))}
-    </div>
-  );
-}
-
-function CxItem({ item, actions }: { item: MenuItem; actions: TabBarActions }) {
-  if (item.type === 'separator') return <ContextMenu.Separator className="context-menu-separator" />;
-  if ('label' in item && item.label === '__swatches__') return <SwatchGrid item={item} actions={actions} />;
-  if ('submenu' in item && item.submenu?.length) return (
-    <ContextMenu.Sub>
-      <ContextMenu.SubTrigger className="context-menu-sub-trigger">
-        <ItemIcon item={item} />{item.label}<span className="context-sub-arrow"><IconArrow /></span>
-      </ContextMenu.SubTrigger>
-      <ContextMenu.Portal>
-        <ContextMenu.SubContent className="context-menu-sub-content">
-          {item.submenu.map((s, i) => <CxItem key={i} item={s} actions={actions} />)}
-        </ContextMenu.SubContent>
-      </ContextMenu.Portal>
-    </ContextMenu.Sub>
-  );
-  return (
-    <ContextMenu.Item
-      className="context-menu-item" data-destructive={'destructive' in item && item.destructive ? '' : undefined}
-      onSelect={() => 'action' in item && item.action?.(actions)}
-    >
-      <ItemIcon item={item} />{'label' in item ? item.label : ''}
-    </ContextMenu.Item>
-  );
-}
-
-function DdItem({ item, actions }: { item: MenuItem; actions: TabBarActions }) {
-  if (item.type === 'separator') return <DropdownMenu.Separator className="context-menu-separator" />;
-  if ('label' in item && item.label === '__swatches__') return <SwatchGrid item={item} actions={actions} />;
-  if ('submenu' in item && item.submenu?.length) return (
-    <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger className="context-menu-sub-trigger">
-        <ItemIcon item={item} />{item.label}<span className="context-sub-arrow"><IconArrow /></span>
-      </DropdownMenu.SubTrigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.SubContent className="context-menu-sub-content">
-          {item.submenu.map((s, i) => <DdItem key={i} item={s} actions={actions} />)}
-        </DropdownMenu.SubContent>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Sub>
-  );
-  return (
-    <DropdownMenu.Item
-      className="context-menu-item" data-destructive={'destructive' in item && item.destructive ? '' : undefined}
-      onSelect={() => 'action' in item && item.action?.(actions)}
-    >
-      <ItemIcon item={item} />{'label' in item ? item.label : ''}
-    </DropdownMenu.Item>
-  );
-}
-
-function useMenuCtx(target: ContextMenuTarget, startRename: () => void): MenuCtx {
-  const { actions, dropdown } = useTabBarContext();
-  return {
-    startRename,
-    focusGroup: (groupId: string) => {
-      if (target.type === 'tab' || target.type === 'group-tab') actions.setActiveTab(target.tabId);
-      dropdown.openImmediate(groupId);
-    },
-  };
-}
-
-function TabContextMenu({ target, startRename, children }: { target: ContextMenuTarget; startRename?: () => void; children: React.ReactNode }) {
-  const { actions, state } = useTabBarContext();
-  const ctx = useMenuCtx(target, startRename ?? (() => {}));
-  const items = buildMenuItems(target, actions, state, ctx);
-  if (!items.length) return <>{children}</>;
-  return (
-    <ContextMenu.Root>
-      <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
-      <ContextMenu.Portal>
-        <ContextMenu.Content className="context-menu-content">
-          {items.map((item, i) => <CxItem key={i} item={item} actions={actions} />)}
-        </ContextMenu.Content>
-      </ContextMenu.Portal>
-    </ContextMenu.Root>
-  );
-}
-
-function DotsMenu({ target, startRename }: { target: ContextMenuTarget; startRename: () => void }) {
-  const { actions, state } = useTabBarContext();
-  const ctx = useMenuCtx(target, startRename);
-  const items = buildMenuItems(target, actions, state, ctx);
-  if (!items.length) return null;
-  return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <button className="tab-dots" onPointerDown={stopPD} onClick={e => e.stopPropagation()} aria-label="More options">
-          <IconDots />
-        </button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content className="context-menu-content" align="end">
-          {items.map((item, i) => <DdItem key={i} item={item} actions={actions} />)}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
-  );
+/** This example's "reveal a group" behavior: open its floating dropdown. */
+function useDropdownMenuCtx(target: ContextMenuTarget, startRename: () => void): MenuCtx {
+  const { dropdown } = useTabBarContext();
+  const focusGroup = useFocusGroup(target, (groupId) => dropdown.openImmediate(groupId));
+  return { startRename, focusGroup };
 }
 
 function TabItem({ tabId }: { tabId: string }) {
@@ -315,14 +192,16 @@ function TabItem({ tabId }: { tabId: string }) {
   const { setNodeRef, attributes, listeners, style, activate, close } = useTab(tabId);
   const labelRef = useRef<EditableLabelHandle>(null);
   const startRename = useCallback(() => labelRef.current?.startEditing(), []);
+  const target: ContextMenuTarget = { type: 'tab', tabId };
+  const ctx = useDropdownMenuCtx(target, startRename);
   if (!tab) return null;
   return (
-    <TabContextMenu target={{ type: 'tab', tabId }} startRename={startRename}>
+    <TabContextMenu target={target} ctx={ctx} icons={MENU_ICONS} buildMenuItems={buildMenuItems}>
       <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style}
         className="tab" onClick={activate} title={tab.draggable === false ? `${tab.label} (not draggable)` : tab.label}>
         {tab.draggable === false && <span className="tab-lock-icon"><IconLock /></span>}
         <EditableLabel ref={labelRef} value={tab.label} className="tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
-        <DotsMenu target={{ type: 'tab', tabId }} startRename={startRename} />
+        <DotsMenu target={target} ctx={ctx} icons={MENU_ICONS} buildMenuItems={buildMenuItems} triggerIcon={<IconDots />} />
         {tab.closable && (
           <button className="tab-close" onPointerDown={stopPD} onClick={e => { e.stopPropagation(); close(); }} aria-label="Close">
             <IconClose />
@@ -339,16 +218,18 @@ function GroupTabItem({ tabId, groupId }: { tabId: string; groupId: string }) {
   const { setNodeRef, attributes, listeners, style, activate, close, eject } = useGroupTab(tabId, groupId);
   const labelRef = useRef<EditableLabelHandle>(null);
   const startRename = useCallback(() => labelRef.current?.startEditing(), []);
+  const target: ContextMenuTarget = { type: 'group-tab', tabId, groupId };
+  const ctx = useDropdownMenuCtx(target, startRename);
   if (!tab) return null;
   return (
-    <TabContextMenu target={{ type: 'group-tab', tabId, groupId }} startRename={startRename}>
+    <TabContextMenu target={target} ctx={ctx} icons={MENU_ICONS} buildMenuItems={buildMenuItems}>
       <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style}
         className="group-tab-item" onClick={() => { activate(); dropdown.closeImmediate(); }}>
         <EditableLabel ref={labelRef} value={tab.label} className="group-tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
         <button className="group-tab-eject" onPointerDown={stopPD} onClick={e => { e.stopPropagation(); eject(); }} title="Eject from group">
           <IconEject />
         </button>
-        <DotsMenu target={{ type: 'group-tab', tabId, groupId }} startRename={startRename} />
+        <DotsMenu target={target} ctx={ctx} icons={MENU_ICONS} buildMenuItems={buildMenuItems} triggerIcon={<IconDots />} />
         {tab.closable && (
           <button className="tab-close" style={{ opacity: 1, position: 'static' }}
             onPointerDown={stopPD} onClick={e => { e.stopPropagation(); close(); }} title="Close">
@@ -403,8 +284,11 @@ function GroupPill({ groupId }: { groupId: string }) {
     setNodeRef(node);
   }, [setNodeRef]);
 
+  const target: ContextMenuTarget = { type: 'group', groupId };
+  const ctx = useDropdownMenuCtx(target, startRename);
+
   return (
-    <TabContextMenu target={{ type: 'group', groupId }} startRename={startRename}>
+    <TabContextMenu target={target} ctx={ctx} icons={MENU_ICONS} buildMenuItems={buildMenuItems}>
       <div style={{ position: 'relative' }}>
         <div ref={setRefs} {...(attributes as any)} {...(listeners as any)}
           style={{ ...style, '--group-color': color } as React.CSSProperties}
@@ -414,7 +298,7 @@ function GroupPill({ groupId }: { groupId: string }) {
           <span className="group-dot" />
           <EditableLabel ref={labelRef} value={label} className="group-label" onCommit={(v) => actions.updateGroup(groupId, { label: v })} />
           <span className="group-count">{tabIds.length}</span>
-          <DotsMenu target={{ type: 'group', groupId }} startRename={startRename} />
+          <DotsMenu target={target} ctx={ctx} icons={MENU_ICONS} buildMenuItems={buildMenuItems} triggerIcon={<IconDots />} />
           <span className="group-chevron"><IconChevron /></span>
         </div>
 
@@ -441,8 +325,10 @@ function TabStrip() {
   } = useTabStrip();
   const { actions } = useTabBarContext();
   const addTab = () => { const id = newTabId(); actions.addTab({ id, label: `Tab ${id.split('-')[1]}`, closable: true }); };
+  const stripTarget: ContextMenuTarget = { type: 'strip' };
+  const stripCtx = useDropdownMenuCtx(stripTarget, () => {});
   return (
-    <TabContextMenu target={{ type: 'strip' }}>
+    <TabContextMenu target={stripTarget} ctx={stripCtx} icons={MENU_ICONS} buildMenuItems={buildMenuItems}>
       <div className="tab-strip-wrap" data-orientation={orientation}>
         {canScrollBack && (
           <button className="tab-strip-scroll-btn" data-side="back" onClick={scrollBack} aria-label="Scroll back">

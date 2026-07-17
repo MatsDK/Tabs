@@ -239,7 +239,10 @@ body { min-height: 100vh; background: var(--c-bg); }
   border-bottom: 1px solid transparent;
 }
 
-.tab-strip[data-orientation='vertical'] .tab-new {
+/* .tab-strip-wrap, not .tab-strip — .tab-new is a sibling of .tab-strip now
+   (outside the scrollable element, so it can't scroll out of view), not a
+   descendant of it. */
+.tab-strip-wrap[data-orientation='vertical'] .tab-new {
   align-self: stretch;
   border-radius: 5px;
 }
@@ -486,7 +489,7 @@ input.tab-label, input.group-label, input.group-tab-label {
   padding: 4px;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
 }
 
 .group-empty-drop-zone {
@@ -508,20 +511,24 @@ input.tab-label, input.group-label, input.group-tab-label {
   color: var(--c-accent);
 }
 
+/* Bordered like a top-level .tab, not a plain menu row — reinforces that a
+   group-tab is the same kind of object as a strip tab, just inside a
+   different container, rather than reading as a generic list/menu item. */
 .group-tab-item {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 5px 8px;
-  border-radius: 4px;
+  border: 1px solid var(--c-border-m);
+  border-radius: 5px;
   cursor: pointer;
   font-size: 12.5px;
   color: var(--c-text);
-  transition: background 0.1s;
+  transition: background 0.1s, border-color 0.1s;
   user-select: none;
 }
 .group-tab-item:hover { background: var(--c-surface); }
-.group-tab-item[data-active] { background: #dbeafe; color: var(--c-accent); }
+.group-tab-item[data-active] { background: #dbeafe; border-color: var(--c-accent); color: var(--c-accent); }
 .group-tab-item[data-dragging] { opacity: 0.35; }
 
 .group-tab-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }

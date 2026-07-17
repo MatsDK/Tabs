@@ -343,13 +343,16 @@ function TabStrip() {
                 : <GroupPill key={slot.groupId} groupId={slot.groupId} />
             )}
           </SortableContext>
-          <button className="tab tab-new" onClick={addTab} title="New tab (right-click for more)">+</button>
         </div>
         {canScrollForward && (
           <button className="tab-strip-scroll-btn" data-side="forward" onClick={scrollForward} aria-label="Scroll forward">
             <IconArrow />
           </button>
         )}
+        {/* Outside .tab-strip (the scrollable element) on purpose — sits
+            right after the last tab when nothing overflows, but stays
+            pinned in view rather than scrolling away once it does. */}
+        <button className="tab tab-new" onClick={addTab} title="New tab (right-click for more)">+</button>
       </div>
     </TabContextMenu>
   );

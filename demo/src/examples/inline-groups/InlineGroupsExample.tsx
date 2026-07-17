@@ -332,11 +332,14 @@ function InlineStrip() {
                 : <InlineGroup key={slot.groupId} groupId={slot.groupId} tabIds={slot.tabIds} />
             )}
           </SortableContext>
-          <button className="ig-new-tab" onClick={addTab} title="New tab (right-click for more)">+</button>
         </div>
         {canScrollForward && (
           <button className="ig-scroll-btn" data-side="forward" onClick={scrollForward} aria-label="Scroll forward"><IconArrow /></button>
         )}
+        {/* Outside .ig-strip (the scrollable element) on purpose — sits right
+            after the last tab when nothing overflows, but stays pinned in
+            view rather than scrolling away once it does. */}
+        <button className="ig-new-tab" onClick={addTab} title="New tab (right-click for more)">+</button>
       </div>
     </TabContextMenu>
   );

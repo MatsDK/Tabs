@@ -194,7 +194,21 @@ export function DotsMenu({
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content className={cls.content} align="end">
+        {/* stopPropagation here, not just on the trigger: this menu is
+            portalled to document.body in the DOM, but it's still a React
+            descendant of wherever <DotsMenu> itself was rendered — a tab
+            row inside a group's dropdown, for every caller of this
+            component. React's synthetic events bubble along the component
+            tree, not the DOM tree, so without this, clicking any item here
+            bubbles straight up through the portal to that row's own
+            onClick (select this tab + close the group dropdown), closing
+            the group out from under the menu the instant you pick
+            something from it — regardless of which item, or how deep a
+            submenu it's nested in. */}
+        <DropdownMenu.Content
+          className={cls.content} align="end"
+          onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
+        >
           {items.map((item, i) => <DdItem key={i} item={item} actions={actions} icons={icons} cls={cls} />)}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>

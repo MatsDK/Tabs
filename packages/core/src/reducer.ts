@@ -195,10 +195,12 @@ function applyAction<TTabMeta, TGroupMeta>(
       if (!tab || !tab.pinned) return state;
 
       const updatedTabs = { ...state.tabs, [action.tabId]: { ...tab, pinned: false } };
-      // Move to just after the pinned zone
-      const pinnedEnd = lastPinnedIndex(state);
       const withoutTab = removeTabFromSlots(state.slots, action.tabId);
-      const newSlots = insertSlotAt(withoutTab, { type: 'tab', tabId: action.tabId }, pinnedEnd + 1);
+      // Boundary must be measured after removal — measuring before counted the
+      // tab itself, landing it one slot too far right.
+      const insertAt =
+        lastPinnedIndex({ ...state, tabs: updatedTabs, slots: withoutTab }) + 1;
+      const newSlots = insertSlotAt(withoutTab, { type: 'tab', tabId: action.tabId }, insertAt);
       return { ...state, tabs: updatedTabs, slots: newSlots };
     }
 

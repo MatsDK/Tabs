@@ -123,6 +123,17 @@ input.mi-tab-label, input.mi-group-tab-label, input.mi-group-label {
   background: color-mix(in srgb, var(--mi-gc) 25%, transparent);
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--mi-gc) 40%, transparent);
 }
+.mi-group-pill[data-contains-active] { border-color: var(--mi-gc); }
+
+.mi-group-active-child {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.75;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .mi-group-icon, .mi-group-chevron { display: flex; align-items: center; color: var(--mi-gc); flex-shrink: 0; }
 .mi-group-chevron { transition: transform 0.12s; }

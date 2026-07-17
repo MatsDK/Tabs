@@ -57,6 +57,36 @@ describe('tabBarReducer — basic tab actions', () => {
   });
 });
 
+describe('tabBarReducer — PIN_TAB / UNPIN_TAB', () => {
+  it('unpinning the only pinned tab keeps it in place (regression: landed one slot too far right)', () => {
+    const state = baseState(); // p1 pinned at index 0
+    const next = tabBarReducer(state, { type: 'UNPIN_TAB', tabId: 'p1' });
+    expect(next.tabs.p1.pinned).toBe(false);
+    expect(slotOrder(next)[0]).toBe('p1');
+  });
+
+  it('unpinning one of two pinned tabs lands it right after the remaining pinned zone', () => {
+    const state: TabBarState = {
+      ...baseState(),
+      tabs: { ...baseState().tabs, p2: tab('p2', { pinned: true }) },
+      slots: [
+        { type: 'tab', tabId: 'p1' },
+        { type: 'tab', tabId: 'p2' },
+        { type: 'tab', tabId: 't1' },
+      ],
+    };
+    const next = tabBarReducer(state, { type: 'UNPIN_TAB', tabId: 'p1' });
+    expect(slotOrder(next)).toEqual(['p2', 'p1', 't1']);
+  });
+
+  it('pinning moves the tab into the pinned zone', () => {
+    const state = baseState();
+    const next = tabBarReducer(state, { type: 'PIN_TAB', tabId: 't2' });
+    expect(next.tabs.t2.pinned).toBe(true);
+    expect(slotOrder(next).slice(0, 2)).toEqual(['p1', 't2']);
+  });
+});
+
 describe('tabBarReducer — pinned-zone clamp (MOVE_TAB)', () => {
   it('a pinned tab cannot be moved past the pinned/unpinned boundary', () => {
     const state = baseState(); // only p1 is pinned, boundary is index 1

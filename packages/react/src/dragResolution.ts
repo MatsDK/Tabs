@@ -1,12 +1,16 @@
 import { arrayMove } from '@dnd-kit/sortable';
 import type { DndResolveEvent, TabBarState } from '@react-tabstack/core';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Pure drag-resolution logic — no React, no dnd-kit context, fully unit-testable
-// against constructed fixtures. Used identically by TabBarProvider during the
-// live drag (to update the local preview, same-container moves only) and at
-// drop time (to compute the committed state for every move kind).
-// ─────────────────────────────────────────────────────────────────────────────
+// Pure drag-resolution logic — no React, no dnd-kit context.
+//
+// A drag has two independent concerns:
+//   1. Membership — which container (strip or a group) holds the tab. Applied
+//      to the preview state on every drag-over, so the tab's sortable node
+//      moves into the target container's SortableContext and dnd-kit's native
+//      make-space sorting takes over there.
+//   2. Ordering — where inside the final container the tab lands. Never applied
+//      during the drag (dnd-kit transforms preview it); resolved once at drop
+//      via simulate-then-read-back.
 
 export type DragData = Record<string, unknown>;
 
@@ -19,95 +23,81 @@ export function groupTabIds(state: TabBarState, groupId: string): string[] {
   return slot?.type === 'group' ? slot.tabIds : [];
 }
 
+/** Group the tab currently lives in, or null when it sits in the top-level strip. */
+export function containerOf(state: TabBarState, tabId: string): string | null {
+  const slot = state.slots.find((s) => s.type === 'group' && s.tabIds.includes(tabId));
+  return slot?.type === 'group' ? slot.groupId : null;
+}
+
 /**
- * Resolves what a drag-over/drag-end collision means, in terms of the core
- * reducer's DndResolveEvent vocabulary.
- *
- * Branch order matters: group-pill (combine) is checked before the eject-to-strip
- * fallback, so a group-tab dropped on a *different* group's pill routes to
- * MOVE_BETWEEN_GROUPS instead of being ejected to the top-level strip.
+ * Which container the current collision target implies: a groupId, null for
+ * the strip, or undefined when the target says nothing about membership.
  */
-export function resolveDropEvent(
+export function membershipTargetFor(overId: string, overData: DragData): string | null | undefined {
+  if (overData.type === 'group-pill') return overData.groupId as string;
+  if (overData.type === 'group-tab') return overData.groupId as string;
+  if (overId.startsWith('group-dropdown:')) return overId.slice('group-dropdown:'.length);
+  if (overData.type === 'tab' || overData.type === 'group' || overId === 'strip') return null;
+  return undefined;
+}
+
+/**
+ * Event moving the tab into `target` (appended at the end — entering at the
+ * end keeps dnd-kit's directional sorting stable, per the battle-tested
+ * multi-container pattern), or null when it's already there.
+ */
+export function membershipEvent(
+  state: TabBarState,
+  tabId: string,
+  target: string | null
+): DndResolveEvent | null {
+  const from = containerOf(state, tabId);
+  if (from === target) return null;
+  if (target === null) {
+    return { kind: 'EJECT_FROM_GROUP', tabId, groupId: from as string, stripIndex: state.slots.length };
+  }
+  if (from === null) {
+    return { kind: 'DROP_INTO_GROUP', tabId, groupId: target, index: groupTabIds(state, target).length };
+  }
+  return { kind: 'MOVE_BETWEEN_GROUPS', tabId, fromGroupId: from, toGroupId: target, index: groupTabIds(state, target).length };
+}
+
+/**
+ * Final in-container ordering at drop time, computed against a state where
+ * membership has already been settled. Returns null when the drop position is
+ * already correct (e.g. combine-into-pill drops keep the appended position).
+ */
+export function orderingEvent(
   state: TabBarState,
   activeId: string,
-  overId: string,
   activeData: DragData,
+  overId: string,
   overData: DragData
 ): DndResolveEvent | null {
-  if (activeId === overId) return null;
+  if (activeData.type === 'group') {
+    const topIds = topLevelIds(state);
+    const target = overId === 'strip' ? topIds[topIds.length - 1] : topIds.includes(overId) ? overId : null;
+    if (!target || target === activeId) return null;
+    return { kind: 'SORT_STRIP', activeId, overId: target };
+  }
 
-  // ── Combine into / move between groups via the pill itself ─────────────────
-  if (overData.type === 'group-pill') {
+  const tabId = (activeData.tabId ?? activeId) as string;
+
+  if (overData.type === 'group-tab') {
     const groupId = overData.groupId as string;
-    if (activeData.type === 'group-tab') {
-      if (activeData.groupId === groupId) return null; // hovering your own group's pill — no-op
-      return {
-        kind: 'MOVE_BETWEEN_GROUPS',
-        tabId: activeData.tabId as string,
-        fromGroupId: activeData.groupId as string,
-        toGroupId: groupId,
-        index: groupTabIds(state, groupId).length,
-      };
-    }
-    if (activeData.type === 'tab') {
-      return { kind: 'DROP_INTO_GROUP', tabId: activeData.tabId as string, groupId, index: 0 };
-    }
-    return null; // groups can't nest into groups
+    const ids = groupTabIds(state, groupId);
+    const fromIdx = ids.indexOf(tabId);
+    const overIdx = ids.indexOf(overData.tabId as string);
+    if (fromIdx === -1 || overIdx === -1 || fromIdx === overIdx) return null;
+    const toIndex = arrayMove(ids, fromIdx, overIdx).indexOf(tabId);
+    return { kind: 'SORT_GROUP_TABS', tabId, groupId, toIndex };
   }
 
-  // ── Reorder / move within an open group's dropdown ──────────────────────────
-  if (overData.type === 'group-tab' || String(overId).startsWith('group-dropdown:')) {
-    if (activeData.type !== 'tab' && activeData.type !== 'group-tab') return null;
-    const groupId =
-      overData.type === 'group-tab' ? (overData.groupId as string) : String(overId).replace('group-dropdown:', '');
-    const targetIds = groupTabIds(state, groupId);
-    const isSameGroup = activeData.type === 'group-tab' && activeData.groupId === groupId;
-
-    let toIndex: number;
-    if (overData.type === 'group-tab') {
-      const withActive = isSameGroup ? targetIds : [...targetIds, activeData.tabId as string];
-      const fromIdx = withActive.indexOf(activeData.tabId as string);
-      const overIdx = withActive.indexOf(overData.tabId as string);
-      toIndex = fromIdx === -1 || overIdx === -1 ? targetIds.length : arrayMove(withActive, fromIdx, overIdx).indexOf(activeData.tabId as string);
-    } else {
-      toIndex = targetIds.length; // dropped on the dropdown's empty space — append
-    }
-
-    if (activeData.type === 'group-tab') {
-      return isSameGroup
-        ? { kind: 'SORT_GROUP_TABS', tabId: activeData.tabId as string, groupId, toIndex }
-        : {
-            kind: 'MOVE_BETWEEN_GROUPS',
-            tabId: activeData.tabId as string,
-            fromGroupId: activeData.groupId as string,
-            toGroupId: groupId,
-            index: toIndex,
-          };
-    }
-    return { kind: 'DROP_INTO_GROUP', tabId: activeData.tabId as string, groupId, index: toIndex };
-  }
-
-  // ── Eject from a group back to the top-level strip ──────────────────────────
-  if (activeData.type === 'group-tab') {
+  if (overData.type === 'tab' || overData.type === 'group' || overId === 'strip') {
     const topIds = topLevelIds(state);
-    const overIdx = topIds.indexOf(overId);
-    let stripIndex: number;
-    if (overId === 'strip' || overIdx === -1) {
-      stripIndex = topIds.length;
-    } else {
-      const withActive = [...topIds, activeData.tabId as string];
-      stripIndex = arrayMove(withActive, withActive.length - 1, overIdx).indexOf(activeData.tabId as string);
-    }
-    return { kind: 'EJECT_FROM_GROUP', tabId: activeData.tabId as string, groupId: activeData.groupId as string, stripIndex };
-  }
-
-  // ── Sort within the top-level strip (bare tab or a whole group pill) ────────
-  if (activeData.type === 'tab' || activeData.type === 'group') {
-    const activeSlotId = activeData.type === 'tab' ? (activeData.tabId as string) : (activeData.groupId as string);
-    const topIds = topLevelIds(state);
-    const overSlotId = overId === 'strip' || !topIds.includes(overId) ? topIds[topIds.length - 1] ?? activeSlotId : overId;
-    if (overSlotId === activeSlotId) return null;
-    return { kind: 'SORT_STRIP', activeId: activeSlotId, overId: overSlotId };
+    const target = overId === 'strip' || !topIds.includes(overId) ? topIds[topIds.length - 1] : overId;
+    if (!target || target === tabId) return null;
+    return { kind: 'SORT_STRIP', activeId: tabId, overId: target };
   }
 
   return null;

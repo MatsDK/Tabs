@@ -278,14 +278,14 @@ function TabItem({ tabId }: { tabId: string }) {
 }
 
 function GroupTabItem({ tabId, groupId }: { tabId: string; groupId: string }) {
-  const { state, actions } = useTabBarContext();
+  const { state, actions, dropdown } = useTabBarContext();
   const tab = state.tabs[tabId];
   const { setNodeRef, attributes, listeners, style, activate, close, eject } = useGroupTab(tabId, groupId);
   if (!tab) return null;
   return (
     <TabContextMenu target={{ type: 'group-tab', tabId, groupId }}>
       <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style}
-        className="group-tab-item" onClick={activate}>
+        className="group-tab-item" onClick={() => { activate(); dropdown.closeImmediate(); }}>
         <EditableLabel value={tab.label} className="group-tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
         <button className="group-tab-eject" onPointerDown={stopPD} onClick={e => { e.stopPropagation(); eject(); }} title="Eject from group">
           <IconEject />
@@ -311,7 +311,7 @@ function GroupDropZone({ groupId, tabIds }: { groupId: string; tabIds: string[] 
   );
   return (
     <div ref={setNodeRef} className="group-tabs-list">
-      <SortableContext items={tabIds.map(id => `group-tab:${id}`)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={tabIds} strategy={verticalListSortingStrategy}>
         {tabIds.map(tabId => <GroupTabItem key={tabId} tabId={tabId} groupId={groupId} />)}
       </SortableContext>
     </div>

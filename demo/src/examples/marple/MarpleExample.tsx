@@ -205,12 +205,12 @@ function MiTab({ tabId }: { tabId: string }) {
 }
 
 function MiGroupTab({ tabId, groupId }: { tabId: string; groupId: string }) {
-  const { state, actions } = useTabBarContext();
+  const { state, actions, dropdown } = useTabBarContext();
   const tab = state.tabs[tabId];
   const { setNodeRef, attributes, listeners, style, activate } = useGroupTab(tabId, groupId);
   if (!tab) return null;
   return (
-    <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style} className="mi-group-tab" onClick={activate}>
+    <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style} className="mi-group-tab" onClick={() => { activate(); dropdown.closeImmediate(); }}>
       <EditableLabel value={tab.label} className="mi-group-tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
       <MiSettingsMenu target={{ type: 'group-tab', tabId, groupId }} />
     </div>
@@ -222,7 +222,7 @@ function MiGroupDropdownContent({ groupId, tabIds }: { groupId: string; tabIds: 
   if (tabIds.length === 0) return <div ref={setNodeRef} className="mi-empty-drop" data-over={isOver ? '' : undefined}>Drop tabs here</div>;
   return (
     <div ref={setNodeRef}>
-      <SortableContext items={tabIds.map(id => `group-tab:${id}`)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={tabIds} strategy={verticalListSortingStrategy}>
         {tabIds.map(id => <MiGroupTab key={id} tabId={id} groupId={groupId} />)}
       </SortableContext>
     </div>
@@ -231,13 +231,14 @@ function MiGroupDropdownContent({ groupId, tabIds }: { groupId: string; tabIds: 
 
 function MiGroupPill({ groupId }: { groupId: string }) {
   const pillRef = useRef<HTMLDivElement>(null);
-  const { actions } = useTabBarContext();
+  const { state, actions } = useTabBarContext();
   const {
     setNodeRef, setDropdownRef, dropdownAttributes, attributes, listeners, style,
-    isOpen, isCombineTarget, tabs, color, label, toggle,
+    isOpen, isCombineTarget, containsActive, tabs, color, label, toggle,
   } = useTabGroup(groupId);
   const tabIds = tabs.map(t => t.id);
   const rect = useStickyPosition(pillRef, isOpen);
+  const activeChildName = containsActive && state.activeTabId ? state.tabs[state.activeTabId]?.label : null;
 
   const setRefs = useCallback((node: HTMLDivElement | null) => {
     (pillRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
@@ -252,6 +253,7 @@ function MiGroupPill({ groupId }: { groupId: string }) {
         onClick={e => { e.stopPropagation(); toggle(); }}>
         <span className="mi-group-icon"><IconFolder /></span>
         <EditableLabel value={label} className="mi-group-label" onCommit={(v) => actions.updateGroup(groupId, { label: v })} />
+        {activeChildName && <span className="mi-group-active-child">/ {activeChildName}</span>}
         <span className="mi-group-count">{tabIds.length}</span>
         <MiSettingsMenu target={{ type: 'group', groupId }} />
         <span className="mi-group-chevron"><IconChevron /></span>

@@ -239,13 +239,13 @@ body { min-height: 100vh; background: var(--c-bg); }
 
 .tab[data-dragging] { opacity: 0.35; }
 
-.tab[data-pinned]::after {
-  content: '·';
-  color: var(--c-accent);
-  font-size: 18px;
-  line-height: 0;
-  position: relative;
-  top: 1px;
+.tab[data-pinned]::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  flex-shrink: 0;
 }
 
 .tab-label {
@@ -335,6 +335,12 @@ input.tab-label, input.group-label, input.group-tab-label {
   background: color-mix(in srgb, var(--group-color, var(--c-accent)) 16%, transparent);
   color: var(--c-text);
 }
+
+/* The active tab lives inside this group */
+.group-pill[data-contains-active] .group-dot {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--group-color, var(--c-accent)) 35%, transparent);
+}
+.group-pill[data-contains-active] { color: var(--c-text); }
 
 .group-dot {
   width: 8px;

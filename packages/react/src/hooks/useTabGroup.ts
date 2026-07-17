@@ -52,6 +52,8 @@ export interface UseTabGroupReturn {
   isCombineTarget: boolean;
   /** Hover timer is running — about to open */
   isOverDwell: boolean;
+  /** The currently active tab lives inside this group */
+  containsActive: boolean;
   /** The tabs inside this group (in order) */
   tabs: Tab[];
   color: string | undefined;
@@ -77,6 +79,7 @@ export function useTabGroup(groupId: string): UseTabGroupReturn {
 
   const isOpen = dropdown.openGroupId === groupId;
   const openOn = group?.openOn ?? contextGroupOpenOn;
+  const containsActive = state.activeTabId !== null && tabIds.includes(state.activeTabId);
 
   // Tracks whether this group was opened via click ("pinned") so an unrelated
   // mouse-leave doesn't schedule it closed. Reset once the coordinator moves on.
@@ -137,13 +140,20 @@ export function useTabGroup(groupId: string): UseTabGroupReturn {
   } as React.CSSProperties;
 
   // ── Non-drag open/close based on openOn ───────────────────────────────────
+  // Real mouseenter/mouseleave still fire during pointer drags; the coordinator
+  // is driven exclusively by collision targets then, so these bail out.
+  const isDragActiveRef = useRef(isDragActive);
+  isDragActiveRef.current = isDragActive;
+
   const handleMouseEnter = useCallback(() => {
+    if (isDragActiveRef.current) return;
     if (openOn === 'hover' || openOn === 'hover+click') {
       dropdown.setHoverTarget(groupId);
     }
   }, [openOn, dropdown, groupId]);
 
   const handleMouseLeave = useCallback(() => {
+    if (isDragActiveRef.current) return;
     if (pinnedRef.current) return; // click-pinned — only an explicit close() or another group opening moves it
     if (openOn === 'hover' || openOn === 'hover+click') {
       dropdown.setHoverTarget(null);
@@ -207,6 +217,7 @@ export function useTabGroup(groupId: string): UseTabGroupReturn {
       'data-dragging': isDragging ? '' : undefined,
       'data-over': isOver ? '' : undefined,
       'data-combine-target': isCombineTarget ? '' : undefined,
+      'data-contains-active': containsActive ? '' : undefined,
       onMouseEnter: handleMouseEnter,
       onMouseLeave: handleMouseLeave,
     },
@@ -227,6 +238,7 @@ export function useTabGroup(groupId: string): UseTabGroupReturn {
     isOver,
     isCombineTarget,
     isOverDwell,
+    containsActive,
     tabs,
     color: group?.color,
     label: group?.label ?? groupId,

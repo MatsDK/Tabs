@@ -23,7 +23,7 @@ import type { CollisionContext } from '../collision/tabbedCollisionDetection.js'
 import type { Orientation } from '../axis.js';
 import { useGroupDropdownCoordinator } from '../hooks/useGroupDropdownCoordinator.js';
 import type { GroupDropdownCoordinator } from '../hooks/useGroupDropdownCoordinator.js';
-import { resolveDropEvent } from '../dragResolution.js';
+import { membershipTargetFor, membershipEvent, orderingEvent } from '../dragResolution.js';
 import type { DragData } from '../dragResolution.js';
 import { TabBarContext } from '../context.js';
 import { tabBarReducer, findEmptiedGroups } from '@react-tabstack/core';
@@ -137,6 +137,11 @@ function TabBarProviderInternal({
     setPreviewState(stateRef.current);
   }, []);
 
+  // During a drag, preview state tracks MEMBERSHIP only (which container holds
+  // the tab). Ordering inside a container is previewed by dnd-kit's own
+  // transforms — the tab shares one sortable id everywhere, so once membership
+  // moves it, it natively joins the target SortableContext's make-space sorting.
+  // The final order is resolved once, at drop.
   const handleDragOver = useCallback(
     ({ active, over }: DragOverEvent) => {
       if (!over) {
@@ -147,26 +152,15 @@ function TabBarProviderInternal({
       const activeData0 = (active.data.current ?? {}) as Data;
       const overIdStr = String(over.id);
 
-      if (overData.type === 'group-pill' || overData.type === 'group-tab') {
-        dropdown.setHoverTarget(overData.groupId as string);
-      } else if (overIdStr.startsWith('group-dropdown:')) {
-        dropdown.setHoverTarget(overIdStr.replace('group-dropdown:', ''));
-      } else {
-        dropdown.setHoverTarget(null);
-      }
+      const target = membershipTargetFor(overIdStr, overData);
+      dropdown.setHoverTarget(typeof target === 'string' ? target : null);
 
-      // Live-preview same-container sorts and ejecting back to the strip — the
-      // strip is always rendered, so there's always somewhere for the tab to
-      // visually land. Combining into/moving between groups is the one case
-      // that doesn't preview: the target group's dropdown may not be mounted
-      // yet, so there's nowhere to show it landing. That resolves once,
-      // fresh, at the moment of drop instead — see handleDragEnd.
+      if (activeData0.type === 'group' || target === undefined) return;
       setPreviewState((prev) => {
         const base = prev ?? stateRef.current;
-        const event = resolveDropEvent(base, String(active.id), overIdStr, activeData0, overData);
+        const tabId = (activeData0.tabId ?? String(active.id)) as string;
+        const event = membershipEvent(base, tabId, target);
         if (!event) return prev;
-        const canPreview = event.kind === 'SORT_STRIP' || event.kind === 'SORT_GROUP_TABS' || event.kind === 'EJECT_FROM_GROUP';
-        if (!canPreview) return prev;
         return tabBarReducer(base, { type: 'DND_RESOLVE', dragEvent: event });
       });
     },
@@ -175,28 +169,36 @@ function TabBarProviderInternal({
 
   const handleDragEnd = useCallback(
     ({ active, over }: DragEndEvent) => {
-      const previewBase = previewStateRef.current ?? stateRef.current;
+      const base0 = previewStateRef.current ?? stateRef.current;
       setActiveId(null);
       setActiveData(null);
       setPreviewState(null);
       dropdown.closeImmediate();
 
+      const activeData0 = (active.data.current ?? {}) as Data;
       if (!over) {
-        const data = active.data.current as Data | undefined;
-        if (data?.type === 'tab' || data?.type === 'group-tab') {
+        if (activeData0.type === 'tab' || activeData0.type === 'group-tab') {
           onDragEscape?.(String(active.id), actions);
         }
         return;
       }
 
-      // Resolve fresh against the final collision: same-container events are a
-      // no-op re-resolution of what's already previewed; cross-container events
-      // (into/out of/between groups) are applied here for the first and only time.
       const overData = (over.data.current ?? {}) as Data;
-      const activeData0 = (active.data.current ?? {}) as Data;
-      const event = resolveDropEvent(previewBase, String(active.id), String(over.id), activeData0, overData);
-      const finalState = event ? tabBarReducer(previewBase, { type: 'DND_RESOLVE', dragEvent: event }) : previewBase;
-      commit(finalState);
+      const overIdStr = String(over.id);
+      const activeIdStr = String(active.id);
+
+      let base = base0;
+      if (activeData0.type !== 'group') {
+        const target = membershipTargetFor(overIdStr, overData);
+        if (target !== undefined) {
+          const tabId = (activeData0.tabId ?? activeIdStr) as string;
+          const event = membershipEvent(base, tabId, target);
+          if (event) base = tabBarReducer(base, { type: 'DND_RESOLVE', dragEvent: event });
+        }
+      }
+      const ordering = orderingEvent(base, activeIdStr, activeData0, overIdStr, overData);
+      const final = ordering ? tabBarReducer(base, { type: 'DND_RESOLVE', dragEvent: ordering }) : base;
+      if (final !== stateRef.current) commit(final);
     },
     [actions, onDragEscape, commit, dropdown]
   );

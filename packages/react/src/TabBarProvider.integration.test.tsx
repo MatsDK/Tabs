@@ -51,6 +51,14 @@ describe('TabBarProvider — actions from context actually commit', () => {
     expect(capturedState.slots[0]).toEqual({ type: 'tab', tabId: 't2' });
   });
 
+  it('unpinTab reverses pinTab and keeps the tab at the front (regression)', () => {
+    render(<Harness />);
+    act(() => capturedActions.pinTab('t2'));
+    act(() => capturedActions.unpinTab('t2'));
+    expect(capturedState.tabs.t2.pinned).toBe(false);
+    expect(capturedState.slots[0]).toEqual({ type: 'tab', tabId: 't2' });
+  });
+
   it('addTabToGroup ("Move to Group") moves a top-level tab into an existing group', () => {
     render(<Harness />);
     act(() => capturedActions.addTabToGroup('t1', 'g1'));

@@ -6,8 +6,10 @@ import { useTabBarContext } from '../context.js';
 // ─────────────────────────────────────────────────────────────────────────────
 // useGroupTab — tab inside an open group dropdown
 //
-// Sortable within the group's vertical SortableContext.
-// Adds eject() action to move back into the strip.
+// Registers under the SAME sortable id as the tab uses in the strip. That one
+// id following the tab across containers is what lets dnd-kit treat a
+// cross-container drag as one continuous sort: the placeholder dims in
+// whichever container currently holds it, and make-space previews work in both.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface UseGroupTabReturn {
@@ -37,8 +39,8 @@ export function useGroupTab(tabId: string, groupId: string): UseGroupTabReturn {
     transition,
     isDragging,
   } = useSortable({
-    id: `group-tab:${tabId}`,
-    data: { type: 'group-tab', tabId, groupId },
+    id: tabId,
+    data: { type: 'group-tab', tabId, groupId, pinned: !!tab?.pinned },
     disabled: tab?.draggable === false,
   });
 

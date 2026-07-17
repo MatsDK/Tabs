@@ -3,54 +3,44 @@ import type { CollisionDetection } from '@dnd-kit/core';
 import { getAxisMetrics } from '../axis.js';
 import type { Orientation } from '../axis.js';
 
-// Three ordered layers, narrowing the candidate set at each step:
+// Layered, pointer-first collision detection.
 //
-//   0. Pinned clamp — a pinned tab only collides with other pinned-tab
-//      droppables; an unpinned item never targets one.
-//
-//   1. Inside a mounted group dropdown — a direct 2D hit-test against the
-//      dropdown container's own measured rect (with a small forgiving
-//      margin), not an inferred threshold from the strip's position. Whatever
-//      group's content is actually rendered is what gets tested — no
-//      dependency on which group some piece of React state *thinks* is open.
-//      Resolves to individual group-tab items so precise in-group placement
-//      works, not just the container as a whole.
-//
-//   2. Top-level strip — closestCenter over top-level tab/group droppables.
-//      If the winner is a group pill, a dead zone (middle ~80% of the pill's
-//      main-axis extent) distinguishes "combine into this group" from "sort
-//      next to this pill".
+//   0. Pinned clamp — pinned actives only see pinned targets and vice versa.
+//   1. Inside a mounted dropdown — direct hit-test on the dropdown's own rect;
+//      resolves to the nearest group-tab by pointer position, so precise
+//      in-dropdown placement works.
+//   2. Beneath the strip — a pill whose main-axis range contains the pointer is
+//      targeted (opens it / combines); if its dropdown is already open, its
+//      items are; with a dropdown open but no pill under the pointer, the
+//      dropdown stays sticky so small excursions don't cancel the interaction.
+//   3. In-strip pill combine — pointer physically inside a pill's middle
+//      (combineFraction) targets the pill. Pointer position, not the dragged
+//      rect: a wide tab hovering a short pill must still combine.
+//   4. Fallback — closestCenter over strip-level sortables (native make-space feel).
 
 export interface CollisionContext {
   orientation: Orientation;
+  /** Fraction of a pill's main-axis extent that counts as "combine into group". Default 0.8 */
   combineFraction?: number;
+  /** Forgiveness margin (px) around a dropdown's rect. Default 8 */
   dropdownHitMargin?: number;
 }
 
 type Data = Record<string, unknown> | undefined;
+type Containers = Parameters<CollisionDetection>[0]['droppableContainers'];
 
-/**
- * Nearest candidate by pointer position alone, comparing against each
- * candidate's own midpoint on the given axis — not the dragged item's rect.
- * closestCenter compares the *dragged item's* rect center to each candidate,
- * which skews badly when the dragged item is much wider/taller than the
- * candidates (e.g. a long tab name hovering a list of short ones).
- */
-function nearestByPointer(
-  containers: Parameters<CollisionDetection>[0]['droppableContainers'],
-  pointerCoordinate: number,
-  axis: 'x' | 'y'
-) {
-  let best: (typeof containers)[number] | null = null;
-  let bestDistance = Infinity;
-  for (const container of containers) {
-    const rect = container.rect.current;
-    if (!rect) continue;
-    const mid = axis === 'x' ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
-    const distance = Math.abs(pointerCoordinate - mid);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      best = container;
+function nearestByPointer(containers: Containers, p: { x: number; y: number }, axis: 'y' | 'xy') {
+  let best: Containers[number] | null = null;
+  let bestD = Infinity;
+  for (const c of containers) {
+    const r = c.rect.current;
+    if (!r) continue;
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const d = axis === 'y' ? Math.abs(p.y - cy) : Math.hypot(p.x - cx, p.y - cy);
+    if (d < bestD) {
+      bestD = d;
+      best = c;
     }
   }
   return best;
@@ -61,72 +51,97 @@ export function createTabbedCollisionDetection(ctx: CollisionContext): Collision
   const hitMargin = ctx.dropdownHitMargin ?? 8;
 
   return (args) => {
-    const { active, droppableContainers, pointerCoordinates } = args;
+    const { active, droppableContainers, pointerCoordinates: p } = args;
     const activeData = active.data.current as Data;
     const axis = getAxisMetrics(ctx.orientation);
 
     const activePinned = !!activeData?.pinned;
-    const zoneFiltered = droppableContainers.filter((c) => {
-      const isPinnedTarget = !!(c.data.current as Data)?.pinned;
-      return activePinned ? isPinnedTarget : !isPinnedTarget;
+    const candidates = droppableContainers.filter(
+      (c) => activePinned === !!(c.data.current as Data)?.pinned
+    );
+    const stripItems = candidates.filter((c) => {
+      const t = (c.data.current as Data)?.type;
+      return t === 'tab' || t === 'group';
     });
+    const sortFallback = () =>
+      closestCenter({ ...args, droppableContainers: stripItems.length > 0 ? stripItems : candidates });
 
-    if (pointerCoordinates && activeData?.type !== 'group') {
-      const dropdownContainers = zoneFiltered.filter((c) => String(c.id).startsWith('group-dropdown:'));
-      for (const container of dropdownContainers) {
-        const rect = container.rect.current;
-        if (!rect) continue;
-        const withinX = pointerCoordinates.x >= rect.left - hitMargin && pointerCoordinates.x <= rect.left + rect.width + hitMargin;
-        const withinY = pointerCoordinates.y >= rect.top - hitMargin && pointerCoordinates.y <= rect.top + rect.height + hitMargin;
-        if (!withinX || !withinY) continue;
+    if (!p || activeData?.type === 'group') return sortFallback();
 
-        const groupId = (container.data.current as Data)?.groupId;
-        const dropdownItems = zoneFiltered.filter((c) => {
-          const data = c.data.current as Data;
-          return data?.type === 'group-tab' && data.groupId === groupId;
+    const itemsOfGroup = (groupId: unknown) =>
+      candidates.filter((c) => {
+        const d = c.data.current as Data;
+        return d?.type === 'group-tab' && d.groupId === groupId;
+      });
+
+    // 1. Pointer inside a mounted dropdown
+    for (const dd of candidates) {
+      if (!String(dd.id).startsWith('group-dropdown:')) continue;
+      const r = dd.rect.current;
+      if (!r) continue;
+      const inX = p.x >= r.left - hitMargin && p.x <= r.left + r.width + hitMargin;
+      const inY = p.y >= r.top - hitMargin && p.y <= r.top + r.height + hitMargin;
+      if (!inX || !inY) continue;
+      const nearest = nearestByPointer(itemsOfGroup((dd.data.current as Data)?.groupId), p, 'y');
+      return [{ id: (nearest ?? dd).id }];
+    }
+
+    const stripRect = droppableContainers.find((c) => c.id === 'strip')?.rect.current;
+    const pillMainRange = (c: Containers[number]) => {
+      const r = c.rect.current;
+      if (!r) return null;
+      const start = axis.mainAxis === 'x' ? r.left : r.top;
+      return { start, end: start + r[axis.sizeProp] };
+    };
+
+    // 2. Beneath/beside the strip, in the dropdown-opening band
+    if (stripRect) {
+      const crossStart = axis.crossAxis === 'y' ? stripRect.top : stripRect.left;
+      const beyondStrip = p[axis.crossAxis] > crossStart + stripRect[axis.crossSizeProp];
+      if (beyondStrip) {
+        const pill = stripItems.find((c) => {
+          if ((c.data.current as Data)?.type !== 'group') return false;
+          const range = pillMainRange(c);
+          return !!range && p[axis.mainAxis] >= range.start && p[axis.mainAxis] <= range.end;
         });
-        // Group-tab lists are always vertically stacked regardless of the
-        // outer strip's orientation, so this is a fixed y-axis comparison.
-        const nearest = nearestByPointer(dropdownItems, pointerCoordinates.y, 'y');
-        if (nearest) return [{ id: nearest.id }];
-        return [{ id: container.id }];
+        if (pill) {
+          const gid = (pill.data.current as Data)?.groupId as string;
+          const dd = candidates.find((c) => c.id === `group-dropdown:${gid}`);
+          if (dd) {
+            const nearest = nearestByPointer(itemsOfGroup(gid), p, 'y');
+            return [{ id: (nearest ?? dd).id }];
+          }
+          const pillDrop = candidates.find((c) => c.id === `group-pill:${gid}`);
+          if (pillDrop) return [{ id: pillDrop.id }];
+        } else {
+          const anyDropdownItems = candidates.filter((c) => (c.data.current as Data)?.type === 'group-tab');
+          const nearest = nearestByPointer(anyDropdownItems, p, 'xy');
+          if (nearest) return [{ id: nearest.id }];
+        }
       }
     }
 
-    const topLevel = zoneFiltered.filter((c) => {
-      const data = c.data.current as Data;
-      return data?.type === 'tab' || data?.type === 'group' || c.id === 'strip';
-    });
-
-    const base = closestCenter({ ...args, droppableContainers: topLevel.length > 0 ? topLevel : zoneFiltered });
-    if (base.length === 0) return base;
-
-    const top = base[0];
-    const targetContainer = droppableContainers.find((c) => c.id === top.id);
-    const targetData = targetContainer?.data.current as Data;
-
-    if (
-      targetData?.type === 'group' &&
-      activeData?.type !== 'group' &&
-      pointerCoordinates &&
-      targetContainer?.rect.current
-    ) {
-      const rect = targetContainer.rect.current;
-      const mainOrigin = axis.mainAxis === 'x' ? rect.left : rect.top;
-      const mainSize = rect[axis.sizeProp];
-      const fraction = mainSize > 0 ? (pointerCoordinates[axis.mainAxis] - mainOrigin) / mainSize : 0.5;
-      const margin = (1 - combineFraction) / 2;
-      const isCombineZone = fraction >= margin && fraction <= 1 - margin;
-
-      if (isCombineZone) {
-        const pillDroppable = droppableContainers.find((c) => {
-          const data = c.data.current as Data;
-          return data?.type === 'group-pill' && data.groupId === targetData.groupId;
-        });
-        if (pillDroppable) return [{ id: pillDroppable.id }];
+    // 3. Pointer physically inside a pill's combine zone
+    for (const c of stripItems) {
+      const d = c.data.current as Data;
+      if (d?.type !== 'group') continue;
+      const r = c.rect.current;
+      if (!r) continue;
+      const inside = p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
+      if (!inside) continue;
+      const range = pillMainRange(c);
+      if (range) {
+        const size = range.end - range.start;
+        const frac = size > 0 ? (p[axis.mainAxis] - range.start) / size : 0.5;
+        const m = (1 - combineFraction) / 2;
+        if (frac >= m && frac <= 1 - m) {
+          const pillDrop = candidates.find((cc) => cc.id === `group-pill:${d.groupId}`);
+          if (pillDrop) return [{ id: pillDrop.id }];
+        }
       }
+      break; // inside this pill's edge zone → sort next to it via fallback
     }
 
-    return base;
+    return sortFallback();
   };
 }

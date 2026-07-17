@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTabBarContext } from '../context.js';
@@ -32,11 +32,11 @@ export interface UseTabReturn {
 }
 
 export function useTab(tabId: string): UseTabReturn {
-  const { state, actions } = useTabBarContext();
+  const { state, actions, isDragActive } = useTabBarContext();
   const tab = state.tabs[tabId];
 
   const {
-    setNodeRef,
+    setNodeRef: setSortableRef,
     attributes,
     listeners,
     transform,
@@ -49,6 +49,28 @@ export function useTab(tabId: string): UseTabReturn {
     disabled: tab?.draggable === false,
     animateLayoutChanges: crossContainerAnimateLayoutChanges,
   });
+
+  const isActive = state.activeTabId === tabId;
+  const nodeRef = useRef<HTMLElement | null>(null);
+  const setNodeRef = useCallback(
+    (node: HTMLElement | null) => {
+      nodeRef.current = node;
+      setSortableRef(node);
+    },
+    [setSortableRef]
+  );
+
+  useEffect(() => {
+    // Not during a drag: this tab's own node remounts here fresh every time
+    // it crosses between the strip and a group's dropdown (different
+    // component, different useSortable registration) — an unconditional
+    // scrollIntoView on every such remount would yank the strip's scroll
+    // position out from under a drag in progress, most jarringly on the
+    // active tab itself since dragging never deselects it.
+    if (isActive && !isDragActive) {
+      nodeRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+    }
+  }, [isActive, isDragActive]);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -64,17 +86,17 @@ export function useTab(tabId: string): UseTabReturn {
     attributes: {
       ...attributes,
       role: 'tab',
-      'aria-selected': state.activeTabId === tabId,
+      'aria-selected': isActive,
       'data-tab-id': tabId,
       'data-ts-tab': tabId,
-      'data-active': state.activeTabId === tabId ? '' : undefined,
+      'data-active': isActive ? '' : undefined,
       'data-dragging': isDragging ? '' : undefined,
       'data-pinned': tab?.pinned ? '' : undefined,
       'data-draggable': tab?.draggable === false ? 'false' : 'true',
     },
     listeners,
     style,
-    isActive: state.activeTabId === tabId,
+    isActive,
     isDragging,
     isOver,
     activate,

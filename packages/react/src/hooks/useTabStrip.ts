@@ -1,6 +1,8 @@
+import { useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useTabBarContext } from '../context.js';
 import { getAxisMetrics } from '../axis.js';
+import { useScrollOverflow } from './useScrollOverflow.js';
 import type { Orientation } from '../axis.js';
 import type { TabSlot } from '@react-tabstack/core';
 import type { SortableContextProps } from '@dnd-kit/sortable';
@@ -31,15 +33,33 @@ export interface UseTabStripReturn {
    * apart from same-container reorders, and layout-change animations glitch.
    */
   sortableContextId: string;
+  /** There's hidden content before the current scroll position — render a "scroll back" affordance */
+  canScrollBack: boolean;
+  /** There's hidden content after the current scroll position — render a "scroll forward" affordance */
+  canScrollForward: boolean;
+  /** Scroll one page back */
+  scrollBack: () => void;
+  /** Scroll one page forward */
+  scrollForward: () => void;
 }
 
 export function useTabStrip(): UseTabStripReturn {
   const { state, orientation } = useTabBarContext();
 
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: 'strip',
     data: { type: 'strip' },
   });
+
+  const { setScrollRef, canScrollBack, canScrollForward, scrollBack, scrollForward } = useScrollOverflow(orientation);
+
+  const setNodeRef = useCallback(
+    (node: HTMLElement | null) => {
+      setDroppableRef(node);
+      setScrollRef(node);
+    },
+    [setDroppableRef, setScrollRef]
+  );
 
   // Build the sortable ID list: tabIds and groupIds in strip order
   const sortableIds = state.slots.map((slot) =>
@@ -60,5 +80,9 @@ export function useTabStrip(): UseTabStripReturn {
     orientation,
     sortStrategy: getAxisMetrics(orientation).sortStrategy,
     sortableContextId: 'strip',
+    canScrollBack,
+    canScrollForward,
+    scrollBack,
+    scrollForward,
   };
 }

@@ -38,11 +38,6 @@ const IconArrow = () => (
     <path d="M2 4h4M4 2l2 2-2 2" />
   </svg>
 );
-const IconPin = () => (
-  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 1.5v3.2M3.5 5.5h5l-.7 2.5H4.2L3.5 5.5Z" /><path d="M6 8v2.5" />
-  </svg>
-);
 const IconFolder = () => (
   <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
     <path d="M1.5 3.2h3l1 1.1h5.1v5.5a.7.7 0 0 1-.7.7H2.2a.7.7 0 0 1-.7-.7V3.2Z" />
@@ -76,7 +71,7 @@ const IconLock = () => (
 );
 
 const MENU_ICONS: Record<string, React.ReactNode> = {
-  pin: <IconPin />, close: <IconClose />, eject: <IconEject />, folder: <IconFolder />,
+  close: <IconClose />, eject: <IconEject />, folder: <IconFolder />,
   palette: <IconPalette />, rename: <IconRename />, newGroup: <IconNewGroup />, plus: <IconPlus />,
 };
 
@@ -87,7 +82,7 @@ const INITIAL_STATE: TabBarState = {
     'tab-3': { id: 'tab-3', label: 'API Docs',   closable: true },
     'tab-4': { id: 'tab-4', label: 'Examples',   closable: true },
     'tab-5': { id: 'tab-5', label: 'Changelog',  closable: true },
-    'tab-6': { id: 'tab-6', label: 'Settings',   closable: true, pinned: true },
+    'tab-6': { id: 'tab-6', label: 'Settings',   closable: true },
     'tab-7': { id: 'tab-7', label: 'Read-only',  closable: true, draggable: false },
   },
   groups: {
@@ -123,10 +118,7 @@ function buildMenuItems(target: ContextMenuTarget, actions: TabBarActions, state
 
   if (target.type === 'tab') {
     const { tabId } = target;
-    const tab = state.tabs[tabId];
     return [
-      { label: tab?.pinned ? 'Unpin Tab' : 'Pin Tab', icon: 'pin', action: () => tab?.pinned ? actions.unpinTab(tabId) : actions.pinTab(tabId) },
-      { type: 'separator' as const },
       ...(groups.length > 0 ? [{
         label: 'Move to Group', icon: 'folder',
         submenu: groups.map(g => ({ label: g.label, action: () => actions.addTabToGroup(tabId, g.id) })),
@@ -377,20 +369,35 @@ function GroupPill({ groupId }: { groupId: string }) {
 }
 
 function TabStrip() {
-  const { setNodeRef, attributes, slots, isDraggingOver, sortableIds, sortStrategy, sortableContextId, orientation } = useTabStrip();
+  const {
+    setNodeRef, attributes, slots, isDraggingOver, sortableIds, sortStrategy, sortableContextId, orientation,
+    canScrollBack, canScrollForward, scrollBack, scrollForward,
+  } = useTabStrip();
   const { actions } = useTabBarContext();
   const addTab = () => { const id = newTabId(); actions.addTab({ id, label: `Tab ${id.split('-')[1]}`, closable: true }); };
   return (
     <TabContextMenu target={{ type: 'strip' }}>
-      <div ref={setNodeRef} {...(attributes as any)} className="tab-strip" data-dragging-over={isDraggingOver ? '' : undefined} data-orientation={orientation}>
-        <SortableContext id={sortableContextId} items={sortableIds} strategy={sortStrategy}>
-          {slots.map((slot: TabSlot) =>
-            slot.type === 'tab'
-              ? <TabItem key={slot.tabId} tabId={slot.tabId} />
-              : <GroupPill key={slot.groupId} groupId={slot.groupId} />
-          )}
-        </SortableContext>
-        <button className="tab tab-new" onClick={addTab} title="New tab (right-click for more)">+</button>
+      <div className="tab-strip-wrap" data-orientation={orientation}>
+        {canScrollBack && (
+          <button className="tab-strip-scroll-btn" data-side="back" onClick={scrollBack} aria-label="Scroll back">
+            <IconArrow />
+          </button>
+        )}
+        <div ref={setNodeRef} {...(attributes as any)} className="tab-strip" data-dragging-over={isDraggingOver ? '' : undefined} data-orientation={orientation}>
+          <SortableContext id={sortableContextId} items={sortableIds} strategy={sortStrategy}>
+            {slots.map((slot: TabSlot) =>
+              slot.type === 'tab'
+                ? <TabItem key={slot.tabId} tabId={slot.tabId} />
+                : <GroupPill key={slot.groupId} groupId={slot.groupId} />
+            )}
+          </SortableContext>
+          <button className="tab tab-new" onClick={addTab} title="New tab (right-click for more)">+</button>
+        </div>
+        {canScrollForward && (
+          <button className="tab-strip-scroll-btn" data-side="forward" onClick={scrollForward} aria-label="Scroll forward">
+            <IconArrow />
+          </button>
+        )}
       </div>
     </TabContextMenu>
   );
@@ -406,10 +413,9 @@ function TabPanelItem({ tabId }: { tabId: string }) {
       <p className="tab-panel-body">
         Content for <strong>{tab?.label}</strong>. Drag to reorder · drag into a group ·
         right-click or click ⋮ for options.
-        {tab?.pinned && <span style={{ color: 'var(--c-accent)', marginLeft: 8 }}>· Pinned</span>}
         {tab?.draggable === false && <span style={{ color: 'var(--c-muted)', marginLeft: 8 }}>· Not draggable</span>}
       </p>
-      <pre className="tab-panel-code">{JSON.stringify({ id: tabId, pinned: tab?.pinned ?? false, draggable: tab?.draggable ?? true }, null, 2)}</pre>
+      <pre className="tab-panel-code">{JSON.stringify({ id: tabId, draggable: tab?.draggable ?? true }, null, 2)}</pre>
     </div>
   );
 }

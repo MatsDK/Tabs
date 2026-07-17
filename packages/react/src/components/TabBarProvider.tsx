@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
-  MeasuringStrategy,
   PointerSensor,
   KeyboardSensor,
   TouchSensor,
@@ -59,13 +58,6 @@ interface TabBarProviderInternalProps extends Omit<TabBarProviderProps, 'childre
 }
 
 const EMPTY_MODIFIERS: Modifier[] = [];
-
-// Group dropdowns mount/unmount and tabs move between containers mid-drag —
-// dnd-kit's default lazy/cached rect measurement goes stale the instant that
-// happens, causing exactly the "jumps around" symptom a fixed collision layout
-// is supposed to prevent. Always remeasuring droppables (Marple's own fix for
-// this) keeps collision detection working off current geometry.
-const MEASURING_ALWAYS = { droppable: { strategy: MeasuringStrategy.Always } };
 
 function TabBarProviderInternal({
   state,
@@ -238,7 +230,6 @@ function TabBarProviderInternal({
         collisionDetection={collisionDetection}
         autoScroll={autoScroll}
         modifiers={modifiers}
-        measuring={MEASURING_ALWAYS}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}

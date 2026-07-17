@@ -43,11 +43,6 @@ const IconEject = () => (
     <path d="M5 7V1M2 4l3-3 3 3M1 8.5h8" />
   </svg>
 );
-const IconPin = () => (
-  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 1.5v3.2M3.5 5.5h5l-.7 2.5H4.2L3.5 5.5Z" /><path d="M6 8v2.5" />
-  </svg>
-);
 const IconRename = () => (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
     <path d="M8.2 1.8 10.2 3.8 3.6 10.4 1.2 10.8 1.6 8.4 8.2 1.8Z" />
@@ -60,14 +55,14 @@ const IconPlus = () => (
 );
 
 const MI_ICONS: Record<string, React.ReactNode> = {
-  pin: <IconPin />, close: <IconClose />, eject: <IconEject />, folder: <IconFolder />, rename: <IconRename />, plus: <IconPlus />,
+  close: <IconClose />, eject: <IconEject />, folder: <IconFolder />, rename: <IconRename />, plus: <IconPlus />,
 };
 
 const MI_GROUP_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed', '#0891b2'];
 
 const INITIAL_STATE: TabBarState = {
   tabs: {
-    'mi-1': { id: 'mi-1', label: 'Cohort Overview', closable: true, pinned: true },
+    'mi-1': { id: 'mi-1', label: 'Cohort Overview', closable: true },
     'mi-2': { id: 'mi-2', label: 'Revenue by Segment', closable: true },
     'mi-3': { id: 'mi-3', label: 'Funnel v2', closable: true },
     'mi-4': { id: 'mi-4', label: 'Retention Curve', closable: true },
@@ -96,9 +91,7 @@ function buildMiMenuItems(target: ContextMenuTarget, actions: TabBarActions, sta
 
   if (target.type === 'tab') {
     const { tabId } = target;
-    const tab = state.tabs[tabId];
     return [
-      { label: tab?.pinned ? 'Unpin' : 'Pin', icon: 'pin', action: () => (tab?.pinned ? actions.unpinTab(tabId) : actions.pinTab(tabId)) },
       ...(groups.length > 0 ? [{ label: 'Add to Group', icon: 'folder', submenu: groups.map(g => ({ label: g.label, action: () => actions.addTabToGroup(tabId, g.id) })) }] : []),
       { label: 'New Group', icon: 'plus', action: () => actions.createGroupFromTab(tabId, { id: newGroupId(), label: 'New Group', color: MI_GROUP_COLORS[Math.floor(Math.random() * MI_GROUP_COLORS.length)] }) },
       { type: 'separator' as const },
@@ -196,7 +189,6 @@ function MiTab({ tabId }: { tabId: string }) {
   if (!tab) return null;
   return (
     <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style} className="mi-tab mi-draggable" onClick={activate}>
-      <span className="mi-pin-dot" />
       <EditableLabel value={tab.label} className="mi-tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
       <MiSettingsMenu target={{ type: 'tab', tabId }} />
       {tab.closable && <button className="mi-settings-btn" style={{ opacity: 1 }} onPointerDown={stopPD} onClick={e => { e.stopPropagation(); close(); }} aria-label="Close"><IconClose /></button>}
@@ -270,15 +262,24 @@ function MiGroupPill({ groupId }: { groupId: string }) {
 }
 
 function MiStrip() {
-  const { setNodeRef, attributes, slots, sortableIds, sortStrategy, sortableContextId } = useTabStrip();
+  const {
+    setNodeRef, attributes, slots, sortableIds, sortStrategy, sortableContextId,
+    canScrollBack, canScrollForward, scrollBack, scrollForward,
+  } = useTabStrip();
   const { actions } = useTabBarContext();
   return (
     <div className="mi-strip-wrap">
+      {canScrollBack && (
+        <button className="mi-scroll-btn" data-side="back" onClick={scrollBack} aria-label="Scroll back"><IconChevron /></button>
+      )}
       <div ref={setNodeRef} {...(attributes as any)} className="mi-strip">
         <SortableContext id={sortableContextId} items={sortableIds} strategy={sortStrategy}>
           {slots.map((slot: TabSlot) => slot.type === 'tab' ? <MiTab key={slot.tabId} tabId={slot.tabId} /> : <MiGroupPill key={slot.groupId} groupId={slot.groupId} />)}
         </SortableContext>
       </div>
+      {canScrollForward && (
+        <button className="mi-scroll-btn" data-side="forward" onClick={scrollForward} aria-label="Scroll forward"><IconChevron /></button>
+      )}
       <button className="mi-add-btn" onClick={() => { const id = newTabId(); actions.addTab({ id, label: 'Untitled', closable: true }); }} title="New tab"><IconPlus /></button>
     </div>
   );

@@ -50,6 +50,16 @@
 }
 .mi-strip::-webkit-scrollbar { display: none; }
 
+.mi-scroll-btn {
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; width: 18px; height: 24px; border-radius: 4px;
+  border: none; background: transparent; color: var(--mi-zinc-500);
+  cursor: pointer; padding: 0; transition: background 0.1s, color 0.1s;
+}
+.mi-scroll-btn:hover { background: var(--mi-zinc-100); color: var(--mi-zinc-900); }
+.mi-scroll-btn[data-side='back'] svg { transform: rotate(90deg); }
+.mi-scroll-btn[data-side='forward'] svg { transform: rotate(-90deg); }
+
 .mi-add-btn {
   display: flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; flex-shrink: 0;
@@ -83,13 +93,6 @@
 .mi-tab:hover { background: var(--mi-zinc-100); }
 .mi-tab[data-active] { border-color: var(--mi-blue-500); }
 .mi-tab[data-dragging] { opacity: 0.4; }
-.mi-tab[data-pinned] .mi-pin-dot { display: block; }
-
-.mi-pin-dot {
-  display: none;
-  width: 5px; height: 5px; border-radius: 50%;
-  background: var(--mi-blue-500); flex-shrink: 0;
-}
 
 .mi-tab-label { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 

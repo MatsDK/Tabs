@@ -148,6 +148,9 @@ body { min-height: 100vh; background: var(--c-bg); }
 }
 
 /* ─── Tab Strip ──────────────────────────────────────────────────────────── */
+.tab-strip-wrap { display: flex; align-items: stretch; min-width: 0; }
+.tab-strip-wrap[data-orientation='vertical'] { flex-direction: column; }
+
 .tab-strip {
   display: flex;
   align-items: flex-end;
@@ -156,12 +159,28 @@ body { min-height: 100vh; background: var(--c-bg); }
   padding: 0 4px;
   gap: 2px;
   min-height: 37px;
+  min-width: 0;
+  flex: 1;
   overflow-x: auto;
   overflow-y: visible;
   scrollbar-width: none;
   position: relative;
 }
 .tab-strip::-webkit-scrollbar { display: none; }
+
+.tab-strip[data-orientation='vertical'] { overflow-x: visible; overflow-y: auto; }
+
+.tab-strip-scroll-btn {
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; width: 20px;
+  border: none; background: var(--c-surface); color: var(--c-muted);
+  cursor: pointer; padding: 0; transition: background 0.1s, color 0.1s;
+}
+.tab-strip-scroll-btn:hover { background: var(--c-border-m); color: var(--c-text); }
+.tab-strip-scroll-btn[data-side='back'] svg { transform: rotate(180deg); }
+.tab-strip-wrap[data-orientation='vertical'] .tab-strip-scroll-btn { width: auto; height: 20px; }
+.tab-strip-wrap[data-orientation='vertical'] .tab-strip-scroll-btn[data-side='back'] svg { transform: rotate(-90deg); }
+.tab-strip-wrap[data-orientation='vertical'] .tab-strip-scroll-btn[data-side='forward'] svg { transform: rotate(90deg); }
 
 /* ─── Vertical orientation ───────────────────────────────────────────────── */
 .demo-strip-section--vertical {

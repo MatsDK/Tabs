@@ -226,9 +226,8 @@ function MiGroupPill({ groupId }: { groupId: string }) {
   const { state, actions } = useTabBarContext();
   const {
     setNodeRef, setDropdownRef, dropdownAttributes, attributes, listeners, style,
-    isOpen, isCombineTarget, containsActive, tabs, color, label, toggle,
+    isOpen, isCombineTarget, containsActive, tabIds, color, label, toggle,
   } = useTabGroup(groupId);
-  const tabIds = tabs.map(t => t.id);
   const rect = useStickyPosition(pillRef, isOpen);
   const activeChildName = containsActive && state.activeTabId ? state.tabs[state.activeTabId]?.label : null;
 

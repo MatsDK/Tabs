@@ -321,9 +321,8 @@ function GroupPill({ groupId }: { groupId: string }) {
   const { orientation, actions } = useTabBarContext();
   const {
     setNodeRef, setDropdownRef, dropdownAttributes, attributes, listeners, style,
-    isOpen, isOver, isCombineTarget, tabs, color, label, toggle, dissolve,
+    isOpen, isOver, isCombineTarget, tabIds, color, label, toggle, dissolve,
   } = useTabGroup(groupId);
-  const tabIds = tabs.map(t => t.id);
 
   const rect = useStickyPosition(pillRef, isOpen);
   const pos = rect

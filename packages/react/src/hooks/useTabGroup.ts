@@ -3,6 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { useTabBarContext } from '../context.js';
+import { useStableArray } from './useStableArray.js';
 import type { Tab } from '@react-tabstack/core';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,6 +57,8 @@ export interface UseTabGroupReturn {
   containsActive: boolean;
   /** The tabs inside this group (in order) */
   tabs: Tab[];
+  /** Same tabs, as bare ids — pass straight through to <SortableContext items={...}> */
+  tabIds: string[];
   color: string | undefined;
   label: string;
 
@@ -74,8 +77,8 @@ export function useTabGroup(groupId: string): UseTabGroupReturn {
 
   const group = state.groups[groupId];
   const groupSlot = state.slots.find((s) => s.type === 'group' && s.groupId === groupId);
-  const tabIds = groupSlot?.type === 'group' ? groupSlot.tabIds : [];
-  const tabs = tabIds.map((id) => state.tabs[id]).filter(Boolean) as Tab[];
+  const tabIds = useStableArray(groupSlot?.type === 'group' ? groupSlot.tabIds : []);
+  const tabs = useStableArray(tabIds.map((id) => state.tabs[id]).filter(Boolean) as Tab[]);
 
   const isOpen = dropdown.openGroupId === groupId;
   const openOn = group?.openOn ?? contextGroupOpenOn;
@@ -240,6 +243,7 @@ export function useTabGroup(groupId: string): UseTabGroupReturn {
     isOverDwell,
     containsActive,
     tabs,
+    tabIds,
     color: group?.color,
     label: group?.label ?? groupId,
     open,

@@ -3,6 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { useTabBarContext } from '../context.js';
 import { getAxisMetrics } from '../axis.js';
 import { useScrollOverflow } from './useScrollOverflow.js';
+import { useStableArray } from './useStableArray.js';
 import type { Orientation } from '../axis.js';
 import type { TabSlot } from '@react-tabstack/core';
 import type { SortableContextProps } from '@dnd-kit/sortable';
@@ -61,9 +62,10 @@ export function useTabStrip(): UseTabStripReturn {
     [setDroppableRef, setScrollRef]
   );
 
-  // Build the sortable ID list: tabIds and groupIds in strip order
-  const sortableIds = state.slots.map((slot) =>
-    slot.type === 'tab' ? slot.tabId : slot.groupId
+  // Build the sortable ID list: tabIds and groupIds in strip order. Kept
+  // reference-stable across renders with unchanged content — see useStableArray.
+  const sortableIds = useStableArray(
+    state.slots.map((slot) => (slot.type === 'tab' ? slot.tabId : slot.groupId))
   );
 
   return {

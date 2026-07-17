@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useGroupDropdownCoordinator — single source of truth for "which one group
@@ -103,5 +103,13 @@ export function useGroupDropdownCoordinator(dwell: DwellConfig): GroupDropdownCo
     [clearOpenTimer, clearCloseTimer]
   );
 
-  return { openGroupId, setHoverTarget, openImmediate, closeImmediate };
+  // Referentially stable across renders where nothing here actually changed —
+  // a fresh object literal every render would defeat TabBarProviderInternal's
+  // own contextValue memoization (it depends on this object's identity),
+  // forcing every consumer to re-render on every unrelated state change in the
+  // provider (there are many, in quick succession, during a drag).
+  return useMemo(
+    () => ({ openGroupId, setHoverTarget, openImmediate, closeImmediate }),
+    [openGroupId, setHoverTarget, openImmediate, closeImmediate]
+  );
 }

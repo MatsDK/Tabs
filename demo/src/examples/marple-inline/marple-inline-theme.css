@@ -1,42 +1,46 @@
 /* Inline-group additions on top of ../marple/marple-theme.css's tokens and
-   .mi-tab/.mi-strip/etc — this file only adds what's new for the inline
-   (Chrome-style) presentation; imported alongside marple-theme.css, not
-   instead of it. */
+   .mi-tab/.mi-strip/.mi-draggable/etc — this file only adds what's new for
+   the inline (Chrome-style) presentation; imported alongside
+   marple-theme.css, not instead of it. .mi-draggable now already gives
+   top-level strip items fixed-bounds, non-shrinking sizing (matching the
+   real app), which happens to also be exactly what's safe here — an inline
+   group's footprint DOES change size as it expands/collapses or gains/loses
+   members, and a shared shrink-pool would resize every other tab whenever
+   that happens, which flex-shrink: 0 avoids. No separate class needed. */
 
-/* NOT .mi-draggable: that class gives top-level strip items flex: 1 1 0
-   share-and-shrink sizing, which is safe in the floating-dropdown example
-   (a group's own rendered width in the strip never changes there — only its
-   separately-floated dropdown does) but is exactly the bug fixed in
-   InlineGroupsExample.tsx if reused here: an inline group's footprint DOES
-   change size as it expands/collapses or gains/loses members, and sharing a
-   width budget with it would resize every other tab whenever that happens.
-   Fixed flex-shrink: 0 instead — matches the real app's tabs anyway, which
-   are already content-sized with no max-width cap. */
-.mi-inline-draggable { flex-shrink: 0; }
-
+/* Every rule below reads --group-color directly (set via inline style on
+   .mi-inline-group itself, in MarpleInlineExample.tsx) rather than through
+   a re-aliased --mi-gc the way .mi-group-pill does in marple-theme.css.
+   That pattern only works when the alias is defined on the SAME element
+   --group-color is set on; defining it on .mi-inline-group-head (a child)
+   and then reading it from .mi-inline-group (the parent) or from
+   .mi-inline-empty-drop (a sibling of the head) doesn't work — custom
+   properties don't flow upward or sideways, only down to descendants — so
+   those reads silently fell back to the default blue instead of the actual
+   group color. Reading --group-color directly works everywhere in this
+   subtree since it's set on the outermost element and inherits down. */
 .mi-inline-group {
   display: flex;
   align-items: center;
   gap: 3px;
   flex-shrink: 0;
   padding-bottom: 4px;
-  border-bottom: 2.5px solid var(--mi-gc, var(--mi-blue-500));
+  border-bottom: 2.5px solid var(--group-color, var(--mi-blue-500));
   transition: border-color 0.15s;
 }
-.mi-inline-group[data-over]:not([data-collapsed]) { border-bottom-color: color-mix(in srgb, var(--mi-gc, var(--mi-blue-500)) 70%, var(--mi-zinc-900)); }
+.mi-inline-group[data-over]:not([data-collapsed]) { border-bottom-color: color-mix(in srgb, var(--group-color, var(--mi-blue-500)) 70%, var(--mi-zinc-900)); }
 .mi-inline-group[data-combine-target] .mi-inline-group-head {
-  box-shadow: 0 0 0 2px var(--mi-zinc-000), 0 0 0 3.5px var(--mi-gc, var(--mi-blue-500));
+  box-shadow: 0 0 0 2px var(--mi-zinc-000), 0 0 0 3.5px var(--group-color, var(--mi-blue-500));
 }
 
 .mi-inline-group-head {
-  --mi-gc: var(--group-color, var(--mi-blue-600));
   display: flex;
   align-items: center;
   gap: 5px;
   height: 27px;
   padding: 0 8px;
   border-radius: var(--mi-radius);
-  background: color-mix(in srgb, var(--mi-gc) 12%, var(--mi-zinc-000));
+  background: color-mix(in srgb, var(--group-color, var(--mi-blue-600)) 12%, var(--mi-zinc-000));
   color: var(--mi-zinc-900);
   font-weight: 600;
   font-size: 12.5px;
@@ -44,13 +48,13 @@
   cursor: pointer;
   user-select: none;
 }
-.mi-inline-group-head:hover { background: color-mix(in srgb, var(--mi-gc) 20%, var(--mi-zinc-000)); }
+.mi-inline-group-head:hover { background: color-mix(in srgb, var(--group-color, var(--mi-blue-600)) 20%, var(--mi-zinc-000)); }
 .mi-inline-group-head[data-dragging] { opacity: 0.4; }
 .mi-inline-group-count { font-size: 10.5px; color: var(--mi-zinc-500); }
 
 .mi-inline-dots { opacity: 0; }
 .mi-inline-group-head:hover .mi-inline-dots, .mi-inline-dots[data-state='open'] { opacity: 1; }
-.mi-inline-dots:hover, .mi-inline-dots[data-state='open'] { background: color-mix(in srgb, var(--mi-gc, var(--mi-blue-500)) 24%, var(--mi-zinc-000)); }
+.mi-inline-dots:hover, .mi-inline-dots[data-state='open'] { background: color-mix(in srgb, var(--group-color, var(--mi-blue-500)) 24%, var(--mi-zinc-000)); }
 
 /* Runs automatically on mount — see the equivalent comment in
    inline-groups.css for why this is an animation, not a transition, and why
@@ -74,7 +78,7 @@
 .mi-inline-empty-drop {
   display: flex; align-items: center;
   height: 27px; padding: 0 10px;
-  border: 1.5px dashed color-mix(in srgb, var(--mi-gc, var(--mi-blue-500)) 45%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--group-color, var(--mi-blue-500)) 45%, transparent);
   border-radius: var(--mi-radius);
   color: var(--mi-zinc-500);
   font-size: 11.5px;

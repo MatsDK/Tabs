@@ -80,15 +80,20 @@
 }
 .mi-add-btn:hover { background: var(--mi-zinc-100); }
 
-/* Chrome-style: tabs/groups share the strip's width equally and shrink
-   together as more are added, down to min-width — see the equivalent
-   comment on .tab in index.css. .mi-group-pill is a block child of this
-   wrapper, so it fills whatever width this resolves to with no extra CSS. */
+/* NOT flex: 1 1 0 (Chrome-style share-and-shrink, like .tab in index.css) —
+   the real marple-insight app doesn't do that at all: TabsBar.scss's .tabs
+   is overflow-x: auto with no width-sharing between tabs, and TabItem.scss
+   puts no min/max-width on .tab itself (only on the *editing* input, a
+   separate concern). Fixed flex-shrink: 0 with stable min/max bounds
+   instead — every tab settles at its own content width within that range,
+   never shrinking further just because siblings were added, and the strip
+   scrolls once they collectively don't fit. .mi-group-pill is a block
+   child of this wrapper, so it fills whatever width this resolves to with
+   no extra CSS. */
 .mi-draggable {
-  flex: 1 1 0;
+  flex-shrink: 0;
   min-width: 100px;
   max-width: 220px;
-  transition: width 0.15s ease;
 }
 
 .mi-tab {

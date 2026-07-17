@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
   TabBarProvider, useTabStrip, useTab, useTabGroup, useGroupTab, useTabPanel, useTabBarContext,
+  createTabbedCollisionDetection,
 } from '@react-tabstack/react';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
@@ -322,6 +323,14 @@ function MiInlinePanels() {
   return <>{Object.keys(state.tabs).map(id => <MiInlinePanel key={id} tabId={id} />)}</>;
 }
 
+// See the equivalent comment in InlineGroupsExample.tsx — top-level items
+// here sit only 6px apart (.mi-strip's gap), tighter than the default 8px
+// collision hit-margin was tuned for, which could resolve as the UI
+// visibly jumping between two groups while dragging in the narrow gap
+// between them.
+const collisionDetection = (ctx: Parameters<typeof createTabbedCollisionDetection>[0]) =>
+  createTabbedCollisionDetection({ ...ctx, dropdownHitMargin: 3 });
+
 export default function MarpleInlineExample() {
   const [state, setState] = useState<TabBarState>(INITIAL_STATE);
   return (
@@ -330,6 +339,7 @@ export default function MarpleInlineExample() {
         state={state}
         onStateChange={setState}
         orientation="horizontal"
+        collisionDetection={collisionDetection}
         renderDragOverlay={(id, data) => {
           const isGroup = data.type === 'group';
           const tabId = (data.tabId ?? id) as string;

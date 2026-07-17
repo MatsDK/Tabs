@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
   TabBarProvider, useTabStrip, useTab, useTabGroup, useGroupTab,
-  useTabPanel, useTabBarContext,
+  useTabPanel, useTabBarContext, createTabbedCollisionDetection,
 } from '@react-tabstack/react';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
@@ -375,10 +375,22 @@ function InlineToolbar() {
   );
 }
 
+// Top-level items here sit only 4px apart (see .ig-strip's gap), much
+// tighter than the default 8px collision hit-margin was tuned for — two
+// adjacent pills' forgiveness zones would overlap by ~12px, a wide band
+// where hovering could resolve to either one. Combined with the fact that
+// each resolution actually changes the drag preview (which tab is a member
+// of which group), an unstable resolution in that overlap reads as the UI
+// visibly jumping between two states while barely moving the pointer.
+// Tighter margin for tightly-packed items; unrelated to the dropdown
+// examples' spacing, so scoped to this provider only.
+const collisionDetection = (ctx: Parameters<typeof createTabbedCollisionDetection>[0]) =>
+  createTabbedCollisionDetection({ ...ctx, dropdownHitMargin: 3 });
+
 export default function InlineGroupsExample() {
   const [state, setState] = useState<TabBarState>(INITIAL_STATE);
   return (
-    <TabBarProvider state={state} onStateChange={setState} orientation="horizontal">
+    <TabBarProvider state={state} onStateChange={setState} orientation="horizontal" collisionDetection={collisionDetection}>
       <InlineToolbar />
       <InlineStrip />
       <InlinePanels />

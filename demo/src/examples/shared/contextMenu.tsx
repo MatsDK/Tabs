@@ -12,7 +12,7 @@ import type { ContextMenuTarget, MenuItem, TabBarActions, TabBarState } from '@r
 //   - `buildMenuItems`: what the menu actually contains for a given target
 //   - `icons`: the icon set (examples draw their icons at different sizes/styles)
 //   - `classNames`: each example's own visual theme has its own class-naming
-//     convention (index.css's .context-menu-*, marple-theme.css's .mi-menu-*,
+//     convention (index.css's .context-menu-*, pill-theme.css's .pt-menu-*,
 //     …) — defaults to the .context-menu-* set so existing callers need no
 //     changes, override per-example for anything else.
 //   - `ctx.focusGroup`: what "reveal this group" means in this example's

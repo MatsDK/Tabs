@@ -82,7 +82,7 @@ function TabBarProviderInternal({
   // content exists in the DOM at all (see GroupPill's `isOpen` mount condition
   // in the demo). Anything much slower than ~60ms makes it feel like you can't
   // drag "into" a group at all, because there's nothing there yet to collide
-  // with. Marple's own production value for the drag case is 50ms.
+  // with. Production apps using a similar pattern have gone as low as 50ms.
   const dwellOpen = dwellProp?.open ?? groupHoverDelay ?? 60;
   const dwellClose = dwellProp?.close ?? 200;
   const dwell = useMemo(() => ({ open: dwellOpen, close: dwellClose }), [dwellOpen, dwellClose]);

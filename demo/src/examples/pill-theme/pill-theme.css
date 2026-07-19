@@ -1,0 +1,274 @@
+/* Defined on :root, not .pt-root: the dropdown and menu are portalled to
+   document.body, a *sibling* of .pt-root in the DOM, not a descendant.
+   Custom properties only inherit through the DOM tree, so anything scoped to
+   .pt-root is invisible to portalled content — background: var(--pt-zinc-050)
+   there resolves to nothing, and an unset `background` falls back to its
+   initial value, transparent. That's the "see-through menus" bug. */
+:root {
+  --pt-zinc-000: #ffffff;
+  --pt-zinc-050: #fafafa;
+  --pt-zinc-100: #f4f4f5;
+  --pt-zinc-200: #e4e4e7;
+  --pt-zinc-300: #d4d4d8;
+  --pt-zinc-400: #a1a1aa;
+  --pt-zinc-500: #71717a;
+  --pt-zinc-600: #52525b;
+  --pt-zinc-900: #18181b;
+  --pt-blue-100: #ebf1fe;
+  --pt-blue-300: #a7c0fb;
+  --pt-blue-500: #5586f7;
+  --pt-blue-600: #336aeb;
+  --pt-radius: 4px;
+}
+
+.pt-root {
+  font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--pt-zinc-900);
+  background: var(--pt-zinc-000);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  /* flex: 1 alone isn't enough to let this shrink below its content's
+     intrinsic width — a flex item's default min-width is auto (content-
+     based), not 0, so without this override .pt-root just grows to fit
+     however many tabs there are instead of .pt-strip's own overflow-x:
+     auto ever kicking in. Inside .showcase-theme-frame's overflow: hidden,
+     that meant everything past the visible edge (including the + button,
+     and drop targets inside an expanded group) was silently clipped rather
+     than scrollable — genuinely unreachable, not just visually cut off. */
+  min-width: 0;
+}
+
+.pt-strip-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--pt-zinc-200);
+}
+
+.pt-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+  min-width: 0;
+}
+.pt-strip::-webkit-scrollbar { display: none; }
+
+.pt-scroll-btn {
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; width: 18px; height: 24px; border-radius: 4px;
+  border: none; background: transparent; color: var(--pt-zinc-500);
+  cursor: pointer; padding: 0; transition: background 0.1s, color 0.1s;
+}
+.pt-scroll-btn:hover { background: var(--pt-zinc-100); color: var(--pt-zinc-900); }
+.pt-scroll-btn[data-side='back'] svg { transform: rotate(90deg); }
+.pt-scroll-btn[data-side='forward'] svg { transform: rotate(-90deg); }
+
+.pt-add-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 27px; height: 27px; flex-shrink: 0;
+  border-radius: 50%; border: none; background: transparent;
+  color: var(--pt-blue-500); cursor: pointer; font-size: 15px;
+}
+.pt-add-btn:hover { background: var(--pt-zinc-100); }
+
+/* NOT flex: 1 1 0 (Chrome-style share-and-shrink, like .tab in index.css) —
+   deliberately not doing that here: fixed flex-shrink: 0 with stable
+   min/max bounds instead — every tab settles at its own content width
+   within that range, never shrinking further just because siblings were
+   added, and the strip scrolls once they collectively don't fit.
+   .pt-group-pill is a block child of this wrapper, so it fills whatever
+   width this resolves to with no extra CSS. */
+.pt-draggable {
+  flex-shrink: 0;
+  min-width: 100px;
+  max-width: 220px;
+}
+
+.pt-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  font-weight: 500;
+  font-size: 12.5px;
+  border: 1px solid var(--pt-zinc-200);
+  border-radius: var(--pt-radius);
+  background: var(--pt-zinc-000);
+  color: var(--pt-zinc-900);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background 0.1s, border-color 0.1s;
+}
+.pt-tab:hover { background: var(--pt-zinc-100); }
+.pt-tab[data-active] { border-color: var(--pt-blue-500); }
+.pt-tab[data-dragging] { opacity: 0.4; }
+
+/* flex: 1 + min-width: 0 override flexbox's default shrink floor (a flex
+   item won't shrink below its content's intrinsic width otherwise), which
+   is what actually lets the label — and therefore the whole pill — shrink
+   below the label's natural text width as the strip fills up. */
+.pt-tab-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+input.pt-tab-label, input.pt-group-tab-label, input.pt-group-label {
+  border: none;
+  outline: 1px solid var(--pt-blue-500);
+  outline-offset: -1px;
+  border-radius: 4px;
+  background: var(--pt-zinc-000);
+  font: inherit;
+  color: inherit;
+  padding: 0 3px;
+  min-width: 40px;
+}
+
+.pt-group-pill {
+  --pt-gc: var(--group-color, var(--pt-blue-600));
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 7px;
+  font-weight: 600;
+  font-size: 12.5px;
+  border-radius: var(--pt-radius);
+  border: 1px solid color-mix(in srgb, var(--pt-gc) 25%, transparent);
+  background: color-mix(in srgb, var(--pt-gc) 12%, transparent);
+  color: var(--pt-gc);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+.pt-group-pill:hover,
+.pt-group-pill[data-open] { background: color-mix(in srgb, var(--pt-gc) 20%, transparent); }
+.pt-group-pill[data-dragging] { opacity: 0.4; }
+.pt-group-pill[data-combine-target] {
+  border-color: var(--pt-gc);
+  background: color-mix(in srgb, var(--pt-gc) 25%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--pt-gc) 40%, transparent);
+}
+.pt-group-pill[data-contains-active] { border-color: var(--pt-gc); }
+
+.pt-group-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.pt-group-active-child {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.75;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pt-group-icon, .pt-group-chevron { display: flex; align-items: center; color: var(--pt-gc); flex-shrink: 0; }
+.pt-group-chevron { transition: transform 0.12s; }
+.pt-group-pill[data-open] .pt-group-chevron { transform: rotate(180deg); }
+.pt-group-count {
+  font-size: 10.5px; font-weight: 600; color: var(--pt-gc);
+  background: color-mix(in srgb, var(--pt-gc) 18%, transparent);
+  border-radius: 8px; padding: 0 5px; min-width: 15px; text-align: center;
+}
+
+.pt-settings-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0;
+  border: none; background: transparent; color: var(--pt-zinc-400);
+  cursor: pointer; opacity: 0; padding: 0; transition: opacity 0.1s, background 0.1s;
+}
+.pt-tab:hover .pt-settings-btn, .pt-tab[data-active] .pt-settings-btn,
+.pt-group-pill:hover .pt-settings-btn, .pt-group-pill[data-open] .pt-settings-btn,
+.pt-group-tab:hover .pt-settings-btn,
+.pt-settings-btn[data-state='open'] { opacity: 1; }
+.pt-settings-btn:hover { background: var(--pt-zinc-200); color: var(--pt-zinc-600); }
+
+.pt-dropdown {
+  position: fixed;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 170px;
+  max-width: 260px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--pt-zinc-050);
+  border: 1px solid var(--pt-zinc-200);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.04);
+  animation: pt-fade-in 0.1s ease;
+}
+@keyframes pt-fade-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Bordered like .pt-tab, not a plain menu row — see the equivalent comment
+   on .group-tab-item in index.css. */
+.pt-group-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 7px; border: 1px solid var(--pt-zinc-200); border-radius: var(--pt-radius); cursor: pointer;
+  font-size: 12.5px; color: var(--pt-zinc-900); background: var(--pt-zinc-000); transition: background 0.1s, border-color 0.1s;
+}
+.pt-group-tab:hover { background: var(--pt-zinc-100); }
+.pt-group-tab[data-active] { background: var(--pt-blue-100); border-color: var(--pt-blue-500); color: var(--pt-blue-600); }
+.pt-group-tab[data-dragging] { opacity: 0.4; }
+.pt-group-tab-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pt-empty-drop {
+  height: 30px; margin: 2px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11.5px; color: var(--pt-zinc-400);
+  border: 1.5px dashed var(--pt-zinc-300);
+  transition: border-color 0.1s, background 0.1s, color 0.1s;
+}
+.pt-empty-drop[data-over] { border-color: var(--pt-blue-500); background: var(--pt-blue-100); color: var(--pt-blue-600); }
+
+.pt-menu {
+  display: flex; flex-direction: column; gap: 1px;
+  min-width: 150px; padding: 4px;
+  background: var(--pt-zinc-000);
+  border: 1px solid var(--pt-zinc-200);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.04);
+  z-index: 300;
+  animation: pt-fade-in 0.08s ease;
+}
+.pt-menu-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 8px; border-radius: 5px; border: none; background: transparent;
+  font-size: 12.5px; color: var(--pt-zinc-900); cursor: pointer; text-align: left; width: 100%;
+  font-family: inherit;
+}
+.pt-menu-item[data-highlighted] { background: var(--pt-zinc-100); }
+.pt-menu-item[data-destructive] { color: #dc2626; }
+.pt-menu-icon { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; color: var(--pt-zinc-500); flex-shrink: 0; }
+.pt-menu-sub-arrow { margin-left: auto; color: var(--pt-zinc-400); }
+.pt-menu-sep { height: 1px; background: var(--pt-zinc-200); margin: 3px 2px; }
+.pt-menu-swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 4px 6px; }
+.pt-menu-swatch {
+  width: 16px; height: 16px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; padding: 0; transition: transform 0.08s;
+}
+.pt-menu-swatch:hover { transform: scale(1.15); }
+.pt-menu-swatch[data-active] { border-color: var(--pt-zinc-900); }
+
+.pt-drag-ghost {
+  background: var(--pt-zinc-000) !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.16);
+  cursor: grabbing;
+  opacity: 1 !important;
+}
+
+.pt-content {
+  padding: 20px 24px;
+  color: var(--pt-zinc-600);
+}
+.pt-content h2 { color: var(--pt-zinc-900); font-size: 15px; font-weight: 600; margin-bottom: 6px; }

@@ -11,7 +11,7 @@ import type { TabSlot, TabBarState, ContextMenuTarget, MenuItem, TabBarActions }
 import { EditableLabel, type EditableLabelHandle } from '../shared/EditableLabel.js';
 import { DotsMenu, type MenuCtx } from '../shared/contextMenu.js';
 import { useFocusGroup } from '../shared/useFocusGroup.js';
-import './marple-theme.css';
+import './pill-theme.css';
 
 const stopPD = (e: React.PointerEvent) => e.stopPropagation();
 
@@ -51,45 +51,45 @@ const IconPlus = () => (
   </svg>
 );
 
-const MI_ICONS: Record<string, React.ReactNode> = {
+const PT_ICONS: Record<string, React.ReactNode> = {
   close: <IconClose />, eject: <IconEject />, folder: <IconFolder />, rename: <IconRename />, plus: <IconPlus />,
 };
 
-const MI_GROUP_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed', '#0891b2'];
+const PT_GROUP_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed', '#0891b2'];
 
 const INITIAL_STATE: TabBarState = {
   tabs: {
-    'mi-1': { id: 'mi-1', label: 'Cohort Overview', closable: true },
-    'mi-2': { id: 'mi-2', label: 'Revenue by Segment', closable: true },
-    'mi-3': { id: 'mi-3', label: 'Funnel v2', closable: true },
-    'mi-4': { id: 'mi-4', label: 'Retention Curve', closable: true },
-    'mi-5': { id: 'mi-5', label: 'Churn Drivers', closable: true },
-    'mi-6': { id: 'mi-6', label: 'Draft — Q3 Plan', closable: true },
+    'pt-1': { id: 'pt-1', label: 'Cohort Overview', closable: true },
+    'pt-2': { id: 'pt-2', label: 'Revenue by Segment', closable: true },
+    'pt-3': { id: 'pt-3', label: 'Funnel v2', closable: true },
+    'pt-4': { id: 'pt-4', label: 'Retention Curve', closable: true },
+    'pt-5': { id: 'pt-5', label: 'Churn Drivers', closable: true },
+    'pt-6': { id: 'pt-6', label: 'Draft — Q3 Plan', closable: true },
   },
   groups: {
-    'mi-g1': { id: 'mi-g1', label: 'Growth', color: MI_GROUP_COLORS[0] },
-    'mi-g2': { id: 'mi-g2', label: 'Risk', color: MI_GROUP_COLORS[1] },
+    'pt-g1': { id: 'pt-g1', label: 'Growth', color: PT_GROUP_COLORS[0] },
+    'pt-g2': { id: 'pt-g2', label: 'Risk', color: PT_GROUP_COLORS[1] },
   },
   slots: [
-    { type: 'tab', tabId: 'mi-1' },
-    { type: 'group', groupId: 'mi-g1', tabIds: ['mi-2', 'mi-3'] },
-    { type: 'group', groupId: 'mi-g2', tabIds: ['mi-4', 'mi-5'] },
-    { type: 'tab', tabId: 'mi-6' },
+    { type: 'tab', tabId: 'pt-1' },
+    { type: 'group', groupId: 'pt-g1', tabIds: ['pt-2', 'pt-3'] },
+    { type: 'group', groupId: 'pt-g2', tabIds: ['pt-4', 'pt-5'] },
+    { type: 'tab', tabId: 'pt-6' },
   ],
-  activeTabId: 'mi-2',
+  activeTabId: 'pt-2',
 };
 
 let _tc = 10, _gc = 10;
-const newTabId = () => `mi-${++_tc}`;
-const newGroupId = () => `mi-g${++_gc}`;
+const newTabId = () => `pt-${++_tc}`;
+const newGroupId = () => `pt-g${++_gc}`;
 
-const MI_MENU_CLASSES = {
-  content: 'mi-menu', item: 'mi-menu-item', itemIcon: 'mi-menu-icon', separator: 'mi-menu-sep',
-  subTrigger: 'mi-menu-item', subContent: 'mi-menu', subArrow: 'mi-menu-sub-arrow',
-  swatches: 'mi-menu-swatches', swatch: 'mi-menu-swatch',
+const PT_MENU_CLASSES = {
+  content: 'pt-menu', item: 'pt-menu-item', itemIcon: 'pt-menu-icon', separator: 'pt-menu-sep',
+  subTrigger: 'pt-menu-item', subContent: 'pt-menu', subArrow: 'pt-menu-sub-arrow',
+  swatches: 'pt-menu-swatches', swatch: 'pt-menu-swatch',
 };
 
-function buildMiMenuItems(target: ContextMenuTarget, actions: TabBarActions, state: TabBarState, ctx: MenuCtx): MenuItem[] {
+function buildPtMenuItems(target: ContextMenuTarget, actions: TabBarActions, state: TabBarState, ctx: MenuCtx): MenuItem[] {
   const groups = Object.values(state.groups);
   const { startRename, focusGroup } = ctx;
 
@@ -100,7 +100,7 @@ function buildMiMenuItems(target: ContextMenuTarget, actions: TabBarActions, sta
       ...(groups.length > 0 ? [{ label: 'Add to Group', icon: 'folder', submenu: groups.map(g => ({ label: g.label, action: () => { actions.addTabToGroup(tabId, g.id); focusGroup(g.id); } })) }] : []),
       { label: 'New Group', icon: 'plus', action: () => {
         const id = newGroupId();
-        actions.createGroupFromTab(tabId, { id, label: 'New Group', color: MI_GROUP_COLORS[Math.floor(Math.random() * MI_GROUP_COLORS.length)] });
+        actions.createGroupFromTab(tabId, { id, label: 'New Group', color: PT_GROUP_COLORS[Math.floor(Math.random() * PT_GROUP_COLORS.length)] });
         focusGroup(id);
       } },
       { type: 'separator' as const },
@@ -129,7 +129,7 @@ function buildMiMenuItems(target: ContextMenuTarget, actions: TabBarActions, sta
       { type: 'separator' as const },
       {
         label: '__swatches__',
-        submenu: MI_GROUP_COLORS.map(c => ({ label: c, icon: c === currentColor ? 'active' : undefined, action: () => actions.updateGroup(groupId, { color: c }) })),
+        submenu: PT_GROUP_COLORS.map(c => ({ label: c, icon: c === currentColor ? 'active' : undefined, action: () => actions.updateGroup(groupId, { color: c }) })),
       },
       { type: 'separator' as const },
       { label: 'Delete group', icon: 'close', destructive: true, action: () => actions.removeGroup(groupId) },
@@ -140,23 +140,23 @@ function buildMiMenuItems(target: ContextMenuTarget, actions: TabBarActions, sta
 }
 
 /** This example's "reveal a group" behavior: open its floating dropdown. */
-function useMiMenuCtx(target: ContextMenuTarget, startRename: () => void): MenuCtx {
+function usePtMenuCtx(target: ContextMenuTarget, startRename: () => void): MenuCtx {
   const { dropdown } = useTabBarContext();
   const focusGroup = useFocusGroup(target, (groupId) => dropdown.openImmediate(groupId));
   return { startRename, focusGroup };
 }
 
-function MiSettingsMenu({ target, startRename }: { target: ContextMenuTarget; startRename: () => void }) {
-  const ctx = useMiMenuCtx(target, startRename);
+function PtSettingsMenu({ target, startRename }: { target: ContextMenuTarget; startRename: () => void }) {
+  const ctx = usePtMenuCtx(target, startRename);
   return (
     <DotsMenu
-      target={target} ctx={ctx} icons={MI_ICONS} buildMenuItems={buildMiMenuItems} classNames={MI_MENU_CLASSES}
-      triggerIcon={<IconMore />} triggerClassName="mi-settings-btn"
+      target={target} ctx={ctx} icons={PT_ICONS} buildMenuItems={buildPtMenuItems} classNames={PT_MENU_CLASSES}
+      triggerIcon={<IconMore />} triggerClassName="pt-settings-btn"
     />
   );
 }
 
-function MiTab({ tabId }: { tabId: string }) {
+function PtTab({ tabId }: { tabId: string }) {
   const { state, actions } = useTabBarContext();
   const tab = state.tabs[tabId];
   const { setNodeRef, attributes, listeners, style, activate, close } = useTab(tabId);
@@ -164,15 +164,15 @@ function MiTab({ tabId }: { tabId: string }) {
   const startRename = useCallback(() => labelRef.current?.startEditing(), []);
   if (!tab) return null;
   return (
-    <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style} className="mi-tab mi-draggable" onClick={activate}>
-      <EditableLabel ref={labelRef} value={tab.label} className="mi-tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
-      <MiSettingsMenu target={{ type: 'tab', tabId }} startRename={startRename} />
-      {tab.closable && <button className="mi-settings-btn" style={{ opacity: 1 }} onPointerDown={stopPD} onClick={e => { e.stopPropagation(); close(); }} aria-label="Close"><IconClose /></button>}
+    <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style} className="pt-tab pt-draggable" onClick={activate}>
+      <EditableLabel ref={labelRef} value={tab.label} className="pt-tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
+      <PtSettingsMenu target={{ type: 'tab', tabId }} startRename={startRename} />
+      {tab.closable && <button className="pt-settings-btn" style={{ opacity: 1 }} onPointerDown={stopPD} onClick={e => { e.stopPropagation(); close(); }} aria-label="Close"><IconClose /></button>}
     </div>
   );
 }
 
-function MiGroupTab({ tabId, groupId }: { tabId: string; groupId: string }) {
+function PtGroupTab({ tabId, groupId }: { tabId: string; groupId: string }) {
   const { state, actions, dropdown } = useTabBarContext();
   const tab = state.tabs[tabId];
   const { setNodeRef, attributes, listeners, style, activate } = useGroupTab(tabId, groupId);
@@ -180,26 +180,26 @@ function MiGroupTab({ tabId, groupId }: { tabId: string; groupId: string }) {
   const startRename = useCallback(() => labelRef.current?.startEditing(), []);
   if (!tab) return null;
   return (
-    <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style} className="mi-group-tab" onClick={() => { activate(); dropdown.closeImmediate(); }}>
-      <EditableLabel ref={labelRef} value={tab.label} className="mi-group-tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
-      <MiSettingsMenu target={{ type: 'group-tab', tabId, groupId }} startRename={startRename} />
+    <div ref={setNodeRef} {...(attributes as any)} {...(listeners as any)} style={style} className="pt-group-tab" onClick={() => { activate(); dropdown.closeImmediate(); }}>
+      <EditableLabel ref={labelRef} value={tab.label} className="pt-group-tab-label" onCommit={(v) => actions.updateTab(tabId, { label: v })} />
+      <PtSettingsMenu target={{ type: 'group-tab', tabId, groupId }} startRename={startRename} />
     </div>
   );
 }
 
-function MiGroupDropdownContent({ groupId, tabIds }: { groupId: string; tabIds: string[] }) {
+function PtGroupDropdownContent({ groupId, tabIds }: { groupId: string; tabIds: string[] }) {
   const { setNodeRef, isOver } = useDroppable({ id: `group-dropdown:${groupId}`, data: { type: 'group-dropdown', groupId } });
-  if (tabIds.length === 0) return <div ref={setNodeRef} className="mi-empty-drop" data-over={isOver ? '' : undefined}>Drop tabs here</div>;
+  if (tabIds.length === 0) return <div ref={setNodeRef} className="pt-empty-drop" data-over={isOver ? '' : undefined}>Drop tabs here</div>;
   return (
     <div ref={setNodeRef}>
       <SortableContext id={`group-dropdown:${groupId}`} items={tabIds} strategy={verticalListSortingStrategy}>
-        {tabIds.map(id => <MiGroupTab key={id} tabId={id} groupId={groupId} />)}
+        {tabIds.map(id => <PtGroupTab key={id} tabId={id} groupId={groupId} />)}
       </SortableContext>
     </div>
   );
 }
 
-function MiGroupPill({ groupId }: { groupId: string }) {
+function PtGroupPill({ groupId }: { groupId: string }) {
   const pillRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<EditableLabelHandle>(null);
   const startRename = useCallback(() => labelRef.current?.startEditing(), []);
@@ -217,23 +217,23 @@ function MiGroupPill({ groupId }: { groupId: string }) {
   }, [setNodeRef]);
 
   return (
-    <div style={{ position: 'relative' }} className="mi-draggable">
+    <div style={{ position: 'relative' }} className="pt-draggable">
       <div ref={setRefs} {...(attributes as any)} {...(listeners as any)}
         style={{ ...style, '--group-color': color } as React.CSSProperties}
-        className="mi-group-pill" data-open={isOpen ? '' : undefined} data-combine-target={isCombineTarget ? '' : undefined}
+        className="pt-group-pill" data-open={isOpen ? '' : undefined} data-combine-target={isCombineTarget ? '' : undefined}
         onClick={e => { e.stopPropagation(); toggle(); }}>
-        <span className="mi-group-icon"><IconFolder /></span>
-        <EditableLabel ref={labelRef} value={label} className="mi-group-label" onCommit={(v) => actions.updateGroup(groupId, { label: v })} />
-        {activeChildName && <span className="mi-group-active-child">/ {activeChildName}</span>}
-        <span className="mi-group-count">{tabIds.length}</span>
-        <MiSettingsMenu target={{ type: 'group', groupId }} startRename={startRename} />
-        <span className="mi-group-chevron"><IconChevron /></span>
+        <span className="pt-group-icon"><IconFolder /></span>
+        <EditableLabel ref={labelRef} value={label} className="pt-group-label" onCommit={(v) => actions.updateGroup(groupId, { label: v })} />
+        {activeChildName && <span className="pt-group-active-child">/ {activeChildName}</span>}
+        <span className="pt-group-count">{tabIds.length}</span>
+        <PtSettingsMenu target={{ type: 'group', groupId }} startRename={startRename} />
+        <span className="pt-group-chevron"><IconChevron /></span>
       </div>
 
       {/* No gap to the pill — see the comment on the equivalent calc in DefaultExample.tsx */}
       {isOpen && rect && createPortal(
-        <div ref={setDropdownRef} {...dropdownAttributes} className="mi-dropdown" style={{ left: rect.left, top: rect.top + rect.height }}>
-          <MiGroupDropdownContent groupId={groupId} tabIds={tabIds} />
+        <div ref={setDropdownRef} {...dropdownAttributes} className="pt-dropdown" style={{ left: rect.left, top: rect.top + rect.height }}>
+          <PtGroupDropdownContent groupId={groupId} tabIds={tabIds} />
         </div>,
         document.body
       )}
@@ -241,43 +241,43 @@ function MiGroupPill({ groupId }: { groupId: string }) {
   );
 }
 
-function MiStrip() {
+function PtStrip() {
   const {
     setNodeRef, attributes, slots, sortableIds, sortStrategy, sortableContextId,
     canScrollBack, canScrollForward, scrollBack, scrollForward,
   } = useTabStrip();
   return (
-    <div className="mi-strip-wrap">
+    <div className="pt-strip-wrap">
       {canScrollBack && (
-        <button className="mi-scroll-btn" data-side="back" onClick={scrollBack} aria-label="Scroll back"><IconChevron /></button>
+        <button className="pt-scroll-btn" data-side="back" onClick={scrollBack} aria-label="Scroll back"><IconChevron /></button>
       )}
-      <div ref={setNodeRef} {...(attributes as any)} className="mi-strip">
+      <div ref={setNodeRef} {...(attributes as any)} className="pt-strip">
         <SortableContext id={sortableContextId} items={sortableIds} strategy={sortStrategy}>
-          {slots.map((slot: TabSlot) => slot.type === 'tab' ? <MiTab key={slot.tabId} tabId={slot.tabId} /> : <MiGroupPill key={slot.groupId} groupId={slot.groupId} />)}
+          {slots.map((slot: TabSlot) => slot.type === 'tab' ? <PtTab key={slot.tabId} tabId={slot.tabId} /> : <PtGroupPill key={slot.groupId} groupId={slot.groupId} />)}
         </SortableContext>
       </div>
       {canScrollForward && (
-        <button className="mi-scroll-btn" data-side="forward" onClick={scrollForward} aria-label="Scroll forward"><IconChevron /></button>
+        <button className="pt-scroll-btn" data-side="forward" onClick={scrollForward} aria-label="Scroll forward"><IconChevron /></button>
       )}
-      <MiAddMenu />
+      <PtAddMenu />
     </div>
   );
 }
 
-function MiAddMenu() {
+function PtAddMenu() {
   const { actions } = useTabBarContext();
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button className="mi-add-btn" title="Add" aria-label="Add"><IconPlus /></button>
+        <button className="pt-add-btn" title="Add" aria-label="Add"><IconPlus /></button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content className="mi-menu" align="start" sideOffset={4}>
-          <DropdownMenu.Item className="mi-menu-item" onSelect={() => { const id = newTabId(); actions.addTab({ id, label: 'Untitled', closable: true }); }}>
-            <span className="mi-menu-icon"><IconPlus /></span>New Tab
+        <DropdownMenu.Content className="pt-menu" align="start" sideOffset={4}>
+          <DropdownMenu.Item className="pt-menu-item" onSelect={() => { const id = newTabId(); actions.addTab({ id, label: 'Untitled', closable: true }); }}>
+            <span className="pt-menu-icon"><IconPlus /></span>New Tab
           </DropdownMenu.Item>
-          <DropdownMenu.Item className="mi-menu-item" onSelect={() => { const id = newGroupId(); actions.addGroup({ id, label: 'New Group', color: MI_GROUP_COLORS[Math.floor(Math.random() * MI_GROUP_COLORS.length)] }); }}>
-            <span className="mi-menu-icon"><IconFolder /></span>New Group
+          <DropdownMenu.Item className="pt-menu-item" onSelect={() => { const id = newGroupId(); actions.addGroup({ id, label: 'New Group', color: PT_GROUP_COLORS[Math.floor(Math.random() * PT_GROUP_COLORS.length)] }); }}>
+            <span className="pt-menu-icon"><IconFolder /></span>New Group
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
@@ -285,27 +285,27 @@ function MiAddMenu() {
   );
 }
 
-function MiPanel({ tabId }: { tabId: string }) {
+function PtPanel({ tabId }: { tabId: string }) {
   const { state } = useTabBarContext();
   const tab = state.tabs[tabId];
   const { attributes } = useTabPanel(tabId);
   return (
-    <div {...(attributes as any)} className="mi-content">
+    <div {...(attributes as any)} className="pt-content">
       <h2>{tab?.label}</h2>
       <p>Analysis content for “{tab?.label}” would render here.</p>
     </div>
   );
 }
 
-function MiPanels() {
+function PtPanels() {
   const { state } = useTabBarContext();
-  return <>{Object.keys(state.tabs).map(id => <MiPanel key={id} tabId={id} />)}</>;
+  return <>{Object.keys(state.tabs).map(id => <PtPanel key={id} tabId={id} />)}</>;
 }
 
-export default function MarpleExample() {
+export default function PillThemeExample() {
   const [state, setState] = useState<TabBarState>(INITIAL_STATE);
   return (
-    <div className="mi-root">
+    <div className="pt-root">
       <TabBarProvider
         state={state}
         onStateChange={setState}
@@ -320,12 +320,12 @@ export default function MarpleExample() {
           const group = groupId ? state.groups[groupId] : undefined;
           const label = tab?.label ?? group?.label ?? id;
           return isGroup
-            ? <div className="mi-group-pill mi-drag-ghost" style={{ '--group-color': group?.color } as React.CSSProperties}><span className="mi-group-icon"><IconFolder /></span><span>{label}</span></div>
-            : <div className="mi-tab mi-drag-ghost"><span className="mi-tab-label">{label}</span></div>;
+            ? <div className="pt-group-pill pt-drag-ghost" style={{ '--group-color': group?.color } as React.CSSProperties}><span className="pt-group-icon"><IconFolder /></span><span>{label}</span></div>
+            : <div className="pt-tab pt-drag-ghost"><span className="pt-tab-label">{label}</span></div>;
         }}
       >
-        <MiStrip />
-        <MiPanels />
+        <PtStrip />
+        <PtPanels />
       </TabBarProvider>
     </div>
   );

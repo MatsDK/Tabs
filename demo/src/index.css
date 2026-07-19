@@ -95,7 +95,7 @@ body { min-height: 100vh; background: var(--c-bg); }
 .showcase-vertical-frame { display: flex; flex-direction: column; height: 360px; }
 .showcase-vertical-frame .demo-content-row { flex: 1; min-height: 0; }
 
-.showcase-marple-frame { display: flex; height: 320px; overflow: hidden; }
+.showcase-theme-frame { display: flex; height: 320px; overflow: hidden; }
 
 .demo-content-row { display: flex; min-height: 0; }
 .demo-content-row--horizontal { flex-direction: column; }

@@ -2,7 +2,7 @@ import MinimalExample from '../examples/minimal/MinimalExample.js';
 import BasicExample from '../examples/basic/BasicExample.js';
 import DefaultExample from '../examples/default/DefaultExample.js';
 import InlineGroupsExample from '../examples/inline-groups/InlineGroupsExample.js';
-import MarpleExample from '../examples/marple/MarpleExample.js';
+import PillThemeExample from '../examples/pill-theme/PillThemeExample.js';
 import type { TabBarState } from '@react-tabstack/react';
 
 const VERTICAL_STATE: TabBarState = {
@@ -94,8 +94,8 @@ export default function ExamplesPage() {
         title="Custom visual theme"
         description="A completely separate set of presentational components and CSS, built from the exact same hooks as example 3 — proving the headless core doesn't change to hit a specific visual target."
       >
-        <div className="showcase-marple-frame">
-          <MarpleExample />
+        <div className="showcase-theme-frame">
+          <PillThemeExample />
         </div>
       </Section>
     </div>
